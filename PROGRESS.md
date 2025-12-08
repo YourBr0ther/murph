@@ -5,15 +5,16 @@
 ## Completed Features
 - [x] Project structure initialized with Poetry - 53b1d1c - 2024-12-08
 - [x] Needs system with time-based decay - 78f20e1 - 2024-12-08
+- [x] Utility AI behavior evaluator - 2024-12-08
+- [x] Behavior tree executor (py-trees integration) - 2024-12-08
+- [x] Working + short-term memory system - 2024-12-08
 
 ## In Progress
 - [ ] None (ready for next feature)
 
 ## Up Next
-- [ ] Utility AI behavior evaluator
-- [ ] Behavior tree executor
-- [ ] Core behaviors (explore, greet, play, rest, nuzzle)
-- [ ] Working + short-term memory
+- [ ] Core behaviors (explore, greet, play, rest, nuzzle) - trees implemented, need hardware integration
+- [ ] Long-term memory (persistent storage)
 
 ## Blockers / Notes
-- Python venv not installed on system (need `apt install python3.12-venv` for pytest)
+- None
