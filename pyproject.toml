@@ -1,0 +1,67 @@
+[tool.poetry]
+name = "murph"
+version = "0.1.0"
+description = "An autonomous desktop pet robot with a Sims-like personality and Wall-E voice"
+authors = ["Chris"]
+readme = "README.md"
+packages = [
+    { include = "pi" },
+    { include = "server" },
+    { include = "shared" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+websockets = "^12.0"
+protobuf = "^4.25"
+pydantic = "^2.5"
+numpy = "^1.26"
+
+[tool.poetry.group.server.dependencies]
+fastapi = "^0.109"
+uvicorn = "^0.27"
+httpx = "^0.26"
+sqlalchemy = "^2.0"
+aiosqlite = "^0.19"
+py-trees = "^2.2"
+facenet-pytorch = "^2.5"
+torch = "^2.1"
+
+[tool.poetry.group.pi.dependencies]
+# Pi-specific deps (install on Pi only)
+# picamera2 = "^0.3"
+# RPi-GPIO = "^0.7"
+# luma-oled = "^3.13"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4"
+pytest-asyncio = "^0.23"
+pytest-cov = "^4.1"
+black = "^24.1"
+ruff = "^0.1"
+mypy = "^1.8"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "hardware: marks tests as requiring hardware (deselect with '-m \"not hardware\"')",
+]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
