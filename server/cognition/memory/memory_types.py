@@ -22,6 +22,7 @@ class PersonMemory:
         name: Known name if familiar, None otherwise
         is_familiar: True when familiarity_score >= 50
         familiarity_score: 0-100, grows with interactions
+        trust_score: 0-100, how much Murph trusts this person (default 50)
         first_seen: Timestamp of first encounter
         last_seen: Timestamp of most recent encounter
         interaction_count: Number of distinct interactions
@@ -32,6 +33,7 @@ class PersonMemory:
     person_id: str
     name: str | None = None
     familiarity_score: float = 0.0
+    trust_score: float = 50.0  # 0 (distrusted) to 100 (fully trusted)
     first_seen: float = field(default_factory=time.time)
     last_seen: float = field(default_factory=time.time)
     interaction_count: int = 0
@@ -73,6 +75,7 @@ class PersonMemory:
             "person_id": self.person_id,
             "name": self.name,
             "familiarity_score": self.familiarity_score,
+            "trust_score": self.trust_score,
             "first_seen": self.first_seen,
             "last_seen": self.last_seen,
             "interaction_count": self.interaction_count,
@@ -87,6 +90,7 @@ class PersonMemory:
             person_id=state["person_id"],
             name=state.get("name"),
             familiarity_score=state.get("familiarity_score", 0.0),
+            trust_score=state.get("trust_score", 50.0),
             first_seen=state.get("first_seen", time.time()),
             last_seen=state.get("last_seen", time.time()),
             interaction_count=state.get("interaction_count", 0),

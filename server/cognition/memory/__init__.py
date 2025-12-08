@@ -1,12 +1,13 @@
 """
 Murph - Memory Module
-Working and short-term memory for the robot.
+Working, short-term, and long-term memory for the robot.
 """
 
-from .memory_types import PersonMemory, ObjectMemory, EventMemory
-from .working_memory import WorkingMemory
-from .short_term_memory import ShortTermMemory
+from .long_term_memory import LongTermMemory
 from .memory_system import MemorySystem
+from .memory_types import EventMemory, ObjectMemory, PersonMemory
+from .short_term_memory import ShortTermMemory
+from .working_memory import WorkingMemory
 
 __all__ = [
     "PersonMemory",
@@ -14,5 +15,6 @@ __all__ = [
     "EventMemory",
     "WorkingMemory",
     "ShortTermMemory",
+    "LongTermMemory",
     "MemorySystem",
 ]

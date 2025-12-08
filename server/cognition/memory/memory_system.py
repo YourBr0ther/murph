@@ -1,22 +1,31 @@
 """
 Murph - Memory System
-Unified facade combining working and short-term memory.
+Unified facade combining working, short-term, and long-term memory.
 """
 
-from typing import Any
-import time
+from __future__ import annotations
 
-from .working_memory import WorkingMemory
+import logging
+import time
+from typing import TYPE_CHECKING, Any
+
+from .memory_types import EventMemory, ObjectMemory, PersonMemory
 from .short_term_memory import ShortTermMemory
-from .memory_types import PersonMemory, ObjectMemory, EventMemory
+from .working_memory import WorkingMemory
+
+if TYPE_CHECKING:
+    from .long_term_memory import LongTermMemory
+
+logger = logging.getLogger("murph.memory")
 
 
 class MemorySystem:
     """
     Unified memory system for Murph.
 
-    Combines working memory (immediate context) and short-term memory
-    (decaying memories of people, objects, events) into a single interface.
+    Combines working memory (immediate context), short-term memory
+    (decaying memories of people, objects, events), and optionally
+    long-term memory (persistent SQLite storage) into a single interface.
 
     Usage:
         memory = MemorySystem()
@@ -29,6 +38,13 @@ class MemorySystem:
 
         # Query for behavior evaluation
         context_data = memory.get_behavior_context()
+
+        # With long-term memory:
+        memory = MemorySystem(long_term=ltm)
+        await memory.initialize_from_database()  # Load familiar people
+        # ... during operation ...
+        await memory.sync_to_long_term()  # Periodic sync
+        await memory.shutdown()  # Final sync on shutdown
     """
 
     def __init__(
@@ -38,6 +54,7 @@ class MemorySystem:
         max_events: int = 50,
         familiarity_growth: float = 1.0,
         familiarity_decay: float = 0.1,
+        long_term: LongTermMemory | None = None,
     ) -> None:
         """
         Initialize the memory system.
@@ -48,6 +65,7 @@ class MemorySystem:
             max_events: Maximum events to keep in memory
             familiarity_growth: How much familiarity grows per interaction
             familiarity_decay: How fast familiarity decays (points/hour)
+            long_term: Optional LongTermMemory for persistent storage
         """
         self.working = WorkingMemory()
         self.short_term = ShortTermMemory(
@@ -57,7 +75,10 @@ class MemorySystem:
             familiarity_growth=familiarity_growth,
             familiarity_decay=familiarity_decay,
         )
+        self.long_term = long_term
         self._last_update_time: float = time.time()
+        self._last_sync_time: float = time.time()
+        self._sync_interval: float = 60.0  # Sync to database every 60 seconds
 
     def update(self, delta_seconds: float | None = None) -> None:
         """
@@ -318,5 +339,97 @@ class MemorySystem:
             "short_term": self.short_term.summary(),
         }
 
+    # ==================== Long-term Memory Integration ====================
+
+    async def initialize_from_database(self) -> int:
+        """
+        Initialize memory by loading familiar people from long-term storage.
+
+        Call this at startup when using persistent storage.
+
+        Returns:
+            Number of familiar people loaded
+        """
+        if self.long_term is None:
+            return 0
+
+        await self.long_term.initialize()
+
+        # Load all familiar people into short-term memory
+        familiar = await self.long_term.load_all_familiar_to_dict()
+        for person_id, person in familiar.items():
+            self.short_term._people[person_id] = person
+
+        logger.info(f"Loaded {len(familiar)} familiar people from long-term memory")
+        return len(familiar)
+
+    async def sync_to_long_term(self, force: bool = False) -> tuple[int, int]:
+        """
+        Sync qualifying memories to long-term storage.
+
+        Args:
+            force: If True, sync immediately regardless of interval
+
+        Returns:
+            Tuple of (people_synced, objects_synced) counts
+        """
+        if self.long_term is None:
+            return 0, 0
+
+        current_time = time.time()
+        if not force and (current_time - self._last_sync_time) < self._sync_interval:
+            return 0, 0
+
+        self._last_sync_time = current_time
+
+        # Sync people and objects
+        people_synced, objects_synced = await self.long_term.sync_from_short_term(
+            self.short_term._people,
+            self.short_term._objects,
+        )
+
+        # Sync significant events
+        events_synced = 0
+        for event in self.short_term._events:
+            has_familiar = any(
+                self.short_term.is_person_familiar(p) for p in event.participants
+            )
+            if self.long_term.should_persist_event(event, has_familiar):
+                if await self.long_term.save_event(event):
+                    events_synced += 1
+
+        if events_synced:
+            logger.debug(f"Synced {events_synced} events to long-term memory")
+
+        return people_synced, objects_synced
+
+    async def shutdown(self) -> None:
+        """
+        Shutdown memory system, ensuring all data is persisted.
+
+        Call this when shutting down the robot to save all important memories.
+        """
+        await self.sync_to_long_term(force=True)
+        logger.info("Memory system shutdown complete")
+
+    async def lookup_person_by_face(
+        self, embedding: Any, threshold: float = 0.6
+    ) -> tuple[str | None, float]:
+        """
+        Look up a person by face embedding in long-term memory.
+
+        Args:
+            embedding: 128-dim FaceNet embedding (numpy array)
+            threshold: Minimum cosine similarity for a match
+
+        Returns:
+            Tuple of (person_id, similarity) or (None, 0.0) if no match
+        """
+        if self.long_term is None:
+            return None, 0.0
+
+        return await self.long_term.find_person_by_embedding(embedding, threshold)
+
     def __str__(self) -> str:
-        return f"MemorySystem({self.working}, {self.short_term})"
+        ltm_str = ", long_term=enabled" if self.long_term else ""
+        return f"MemorySystem({self.working}, {self.short_term}{ltm_str})"

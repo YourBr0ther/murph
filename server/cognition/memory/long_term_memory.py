@@ -1,0 +1,561 @@
+"""
+Murph - Long-Term Memory
+Persistent memory storage backed by SQLite.
+"""
+
+import logging
+from datetime import datetime
+from typing import Any
+
+import numpy as np
+from sqlalchemy import func, select
+
+from server.storage import (
+    Database,
+    EventModel,
+    FaceEmbeddingModel,
+    ObjectModel,
+    PersonModel,
+)
+
+from .memory_types import EventMemory, ObjectMemory, PersonMemory
+
+logger = logging.getLogger("murph.memory.long_term")
+
+
+# Thresholds for promoting to long-term memory
+FAMILIARITY_THRESHOLD = 50.0  # Matches PersonMemory.is_familiar
+OBJECT_SIGHTING_THRESHOLD = 10  # Times seen before considered noteworthy
+EVENT_SIGNIFICANCE_THRESHOLD = 0.7  # Minimum significance to store
+
+
+class LongTermMemory:
+    """
+    Long-term memory with SQLite persistence.
+
+    Stores:
+    - Familiar people (familiarity >= 50 or explicitly named)
+    - Interesting objects (investigated or frequently seen)
+    - Significant events (milestones, strong emotional valence)
+
+    Usage:
+        db = Database()
+        ltm = LongTermMemory(db)
+        await ltm.initialize()
+
+        # Load person from database
+        person = await ltm.get_person("person_123")
+
+        # Save person to database
+        await ltm.save_person(person_memory)
+
+        # Check if person should be persisted
+        if ltm.should_persist_person(person_memory):
+            await ltm.save_person(person_memory)
+    """
+
+    def __init__(self, database: Database) -> None:
+        """
+        Initialize long-term memory.
+
+        Args:
+            database: Database instance (not yet initialized is OK)
+        """
+        self._db = database
+        self._initialized = False
+
+    async def initialize(self) -> None:
+        """Initialize the long-term memory (ensure DB is ready)."""
+        if not self._db.is_initialized:
+            await self._db.initialize()
+        self._initialized = True
+        logger.info("Long-term memory initialized")
+
+    # ==================== Person Operations ====================
+
+    async def get_person(self, person_id: str) -> PersonMemory | None:
+        """
+        Load a person from long-term memory.
+
+        Args:
+            person_id: Unique identifier for the person
+
+        Returns:
+            PersonMemory if found, None otherwise
+        """
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(PersonModel).where(PersonModel.person_id == person_id)
+            )
+            model = result.scalar_one_or_none()
+
+            if model is None:
+                return None
+
+            return PersonMemory.from_state(model.to_dict())
+
+    async def save_person(
+        self, person: PersonMemory, trust_score: float | None = None
+    ) -> None:
+        """
+        Save or update a person in long-term memory.
+
+        Args:
+            person: PersonMemory to save
+            trust_score: Optional trust score (0-100), defaults to existing or 50.0
+        """
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(PersonModel).where(PersonModel.person_id == person.person_id)
+            )
+            model = result.scalar_one_or_none()
+
+            if model is None:
+                # Create new record
+                model = PersonModel(
+                    person_id=person.person_id,
+                    name=person.name,
+                    familiarity_score=person.familiarity_score,
+                    trust_score=(
+                        trust_score
+                        if trust_score is not None
+                        else getattr(person, "trust_score", 50.0)
+                    ),
+                    sentiment=person.sentiment,
+                    first_seen=datetime.fromtimestamp(person.first_seen),
+                    last_seen=datetime.fromtimestamp(person.last_seen),
+                    interaction_count=person.interaction_count,
+                    tags=list(person.tags),
+                )
+                session.add(model)
+                logger.debug(f"Created new person record: {person.person_id}")
+            else:
+                # Update existing record
+                model.name = person.name
+                model.familiarity_score = person.familiarity_score
+                if trust_score is not None:
+                    model.trust_score = trust_score
+                model.sentiment = person.sentiment
+                model.last_seen = datetime.fromtimestamp(person.last_seen)
+                model.interaction_count = person.interaction_count
+                model.tags = list(person.tags)
+                logger.debug(f"Updated person record: {person.person_id}")
+
+            await session.commit()
+
+    async def get_all_familiar_people(self) -> list[PersonMemory]:
+        """Get all familiar people from long-term memory."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(PersonModel).where(
+                    PersonModel.familiarity_score >= FAMILIARITY_THRESHOLD
+                )
+            )
+            models = result.scalars().all()
+            return [PersonMemory.from_state(m.to_dict()) for m in models]
+
+    async def get_all_people(self) -> list[PersonMemory]:
+        """Get all people from long-term memory."""
+        async with self._db.session() as session:
+            result = await session.execute(select(PersonModel))
+            models = result.scalars().all()
+            return [PersonMemory.from_state(m.to_dict()) for m in models]
+
+    async def get_person_by_name(self, name: str) -> PersonMemory | None:
+        """Look up a person by name."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(PersonModel).where(PersonModel.name == name)
+            )
+            model = result.scalar_one_or_none()
+            return PersonMemory.from_state(model.to_dict()) if model else None
+
+    def should_persist_person(self, person: PersonMemory) -> bool:
+        """
+        Determine if a person should be persisted to long-term memory.
+
+        Criteria:
+        - Familiarity >= 50 (is_familiar)
+        - OR has a name set
+        """
+        return person.is_familiar or person.name is not None
+
+    # ==================== Face Embedding Operations ====================
+
+    async def save_face_embedding(
+        self, person_id: str, embedding: np.ndarray, quality_score: float = 1.0
+    ) -> bool:
+        """
+        Save a face embedding for a person.
+
+        Args:
+            person_id: Person's unique identifier
+            embedding: 128-dim FaceNet embedding
+            quality_score: Quality of the source image (0-1)
+
+        Returns:
+            True if saved successfully, False if person not found
+        """
+        if embedding.shape != (128,):
+            raise ValueError(f"Expected 128-dim embedding, got {embedding.shape}")
+
+        async with self._db.session() as session:
+            # Get person's database ID
+            result = await session.execute(
+                select(PersonModel).where(PersonModel.person_id == person_id)
+            )
+            person_model = result.scalar_one_or_none()
+
+            if person_model is None:
+                logger.warning(f"Cannot save embedding: person {person_id} not found")
+                return False
+
+            # Store embedding as bytes
+            embedding_bytes = embedding.astype(np.float32).tobytes()
+
+            face_model = FaceEmbeddingModel(
+                person_id=person_model.id,
+                embedding=embedding_bytes,
+                quality_score=quality_score,
+            )
+            session.add(face_model)
+            await session.commit()
+            logger.debug(f"Saved face embedding for {person_id}")
+            return True
+
+    async def get_face_embeddings(self, person_id: str) -> list[np.ndarray]:
+        """Get all face embeddings for a person."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(PersonModel).where(PersonModel.person_id == person_id)
+            )
+            person_model = result.scalar_one_or_none()
+
+            if person_model is None:
+                return []
+
+            result = await session.execute(
+                select(FaceEmbeddingModel).where(
+                    FaceEmbeddingModel.person_id == person_model.id
+                )
+            )
+            embeddings = result.scalars().all()
+
+            return [np.frombuffer(e.embedding, dtype=np.float32) for e in embeddings]
+
+    async def find_person_by_embedding(
+        self, embedding: np.ndarray, threshold: float = 0.6
+    ) -> tuple[str | None, float]:
+        """
+        Find a person by face embedding similarity.
+
+        Args:
+            embedding: 128-dim FaceNet embedding to match
+            threshold: Minimum cosine similarity (0.6 is reasonable)
+
+        Returns:
+            Tuple of (person_id, similarity) or (None, 0.0) if no match
+        """
+        async with self._db.session() as session:
+            result = await session.execute(select(PersonModel))
+            persons = result.scalars().all()
+
+            best_match: str | None = None
+            best_similarity = 0.0
+
+            for person in persons:
+                # Get embeddings for this person
+                emb_result = await session.execute(
+                    select(FaceEmbeddingModel).where(
+                        FaceEmbeddingModel.person_id == person.id
+                    )
+                )
+                person_embeddings = emb_result.scalars().all()
+
+                for stored in person_embeddings:
+                    stored_emb = np.frombuffer(stored.embedding, dtype=np.float32)
+                    # Cosine similarity
+                    norm_product = np.linalg.norm(embedding) * np.linalg.norm(
+                        stored_emb
+                    )
+                    if norm_product > 0:
+                        similarity = np.dot(embedding, stored_emb) / norm_product
+                    else:
+                        similarity = 0.0
+
+                    if similarity > best_similarity:
+                        best_similarity = float(similarity)
+                        best_match = person.person_id
+
+            if best_similarity >= threshold:
+                return best_match, best_similarity
+            return None, 0.0
+
+    # ==================== Object Operations ====================
+
+    async def get_object(self, object_id: str) -> ObjectMemory | None:
+        """Load an object from long-term memory."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(ObjectModel).where(ObjectModel.object_id == object_id)
+            )
+            model = result.scalar_one_or_none()
+            return ObjectMemory.from_state(model.to_dict()) if model else None
+
+    async def save_object(self, obj: ObjectMemory) -> None:
+        """Save or update an object in long-term memory."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(ObjectModel).where(ObjectModel.object_id == obj.object_id)
+            )
+            model = result.scalar_one_or_none()
+
+            pos_x = obj.last_position[0] if obj.last_position else None
+            pos_y = obj.last_position[1] if obj.last_position else None
+
+            if model is None:
+                model = ObjectModel(
+                    object_id=obj.object_id,
+                    object_type=obj.object_type,
+                    first_seen=datetime.fromtimestamp(obj.first_seen),
+                    last_seen=datetime.fromtimestamp(obj.last_seen),
+                    times_seen=obj.times_seen,
+                    interesting=obj.interesting,
+                    last_position_x=pos_x,
+                    last_position_y=pos_y,
+                )
+                session.add(model)
+                logger.debug(f"Created new object record: {obj.object_id}")
+            else:
+                model.object_type = obj.object_type
+                model.last_seen = datetime.fromtimestamp(obj.last_seen)
+                model.times_seen = obj.times_seen
+                model.interesting = obj.interesting
+                model.last_position_x = pos_x
+                model.last_position_y = pos_y
+                logger.debug(f"Updated object record: {obj.object_id}")
+
+            await session.commit()
+
+    async def get_all_objects(self) -> list[ObjectMemory]:
+        """Get all objects from long-term memory."""
+        async with self._db.session() as session:
+            result = await session.execute(select(ObjectModel))
+            models = result.scalars().all()
+            return [ObjectMemory.from_state(m.to_dict()) for m in models]
+
+    async def get_interesting_objects(self) -> list[ObjectMemory]:
+        """Get all interesting objects from long-term memory."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(ObjectModel).where(ObjectModel.interesting == True)  # noqa: E712
+            )
+            models = result.scalars().all()
+            return [ObjectMemory.from_state(m.to_dict()) for m in models]
+
+    def should_persist_object(self, obj: ObjectMemory) -> bool:
+        """
+        Determine if an object should be persisted.
+
+        Criteria:
+        - Has been investigated (interesting == True)
+        - OR seen many times (times_seen >= threshold)
+        """
+        return obj.interesting or obj.times_seen >= OBJECT_SIGHTING_THRESHOLD
+
+    # ==================== Event Operations ====================
+
+    async def get_event(self, event_id: str) -> EventMemory | None:
+        """Load an event from long-term memory."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(EventModel).where(EventModel.event_id == event_id)
+            )
+            model = result.scalar_one_or_none()
+            return EventMemory.from_state(model.to_dict()) if model else None
+
+    async def save_event(
+        self,
+        event: EventMemory,
+        significance: float = 1.0,
+        description: str | None = None,
+    ) -> bool:
+        """
+        Save an event to long-term memory.
+
+        Args:
+            event: EventMemory to save
+            significance: How significant/memorable (0-1)
+            description: Optional description
+
+        Returns:
+            True if saved (new event), False if already exists
+        """
+        async with self._db.session() as session:
+            # Check if already exists
+            result = await session.execute(
+                select(EventModel).where(EventModel.event_id == event.event_id)
+            )
+            if result.scalar_one_or_none() is not None:
+                return False  # Already saved
+
+            model = EventModel(
+                event_id=event.event_id,
+                event_type=event.event_type,
+                timestamp=datetime.fromtimestamp(event.timestamp),
+                participants=event.participants,
+                objects=event.objects,
+                outcome=event.outcome,
+                significance=significance,
+                description=description,
+            )
+            session.add(model)
+            await session.commit()
+            logger.debug(f"Saved event: {event.event_type} ({event.event_id})")
+            return True
+
+    async def get_events_with_person(
+        self, person_id: str, limit: int = 20
+    ) -> list[EventMemory]:
+        """Get recent events involving a specific person."""
+        async with self._db.session() as session:
+            # Fetch all events and filter in Python since JSON querying varies by SQLite version
+            result = await session.execute(
+                select(EventModel).order_by(EventModel.timestamp.desc()).limit(limit * 5)
+            )
+            models = result.scalars().all()
+
+            # Filter for events with the person
+            filtered = [m for m in models if person_id in (m.participants or [])]
+            return [EventMemory.from_state(m.to_dict()) for m in filtered[:limit]]
+
+    async def get_events_by_type(
+        self, event_type: str, limit: int = 20
+    ) -> list[EventMemory]:
+        """Get recent events of a specific type."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(EventModel)
+                .where(EventModel.event_type == event_type)
+                .order_by(EventModel.timestamp.desc())
+                .limit(limit)
+            )
+            models = result.scalars().all()
+            return [EventMemory.from_state(m.to_dict()) for m in models]
+
+    async def get_recent_events(self, limit: int = 20) -> list[EventMemory]:
+        """Get the most recent events."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(EventModel).order_by(EventModel.timestamp.desc()).limit(limit)
+            )
+            models = result.scalars().all()
+            return [EventMemory.from_state(m.to_dict()) for m in models]
+
+    def should_persist_event(self, event: EventMemory, participants_familiar: bool) -> bool:
+        """
+        Determine if an event should be persisted.
+
+        Criteria:
+        - Involves a familiar person
+        - OR is a milestone event type (first_meeting, etc.)
+        - OR has strong emotional valence
+        """
+        milestone_types = {
+            "first_meeting",
+            "first_play",
+            "first_petting",
+            "return_after_absence",
+        }
+
+        if event.event_type in milestone_types:
+            return True
+
+        if participants_familiar:
+            return True
+
+        # Strong emotional events (both positive and negative)
+        if event.outcome in ("positive", "negative") and event.strength >= 0.8:
+            return True
+
+        return False
+
+    # ==================== Bulk Operations ====================
+
+    async def load_all_familiar_to_dict(self) -> dict[str, PersonMemory]:
+        """
+        Load all familiar people for session startup.
+
+        Returns:
+            Dictionary of person_id -> PersonMemory
+        """
+        people = await self.get_all_familiar_people()
+        return {p.person_id: p for p in people}
+
+    async def sync_from_short_term(
+        self,
+        people: dict[str, PersonMemory],
+        objects: dict[str, ObjectMemory],
+    ) -> tuple[int, int]:
+        """
+        Sync qualifying memories from short-term to long-term.
+
+        Called periodically or on shutdown to persist important memories.
+
+        Args:
+            people: Dictionary of person_id -> PersonMemory
+            objects: Dictionary of object_id -> ObjectMemory
+
+        Returns:
+            Tuple of (people_synced, objects_synced) counts
+        """
+        people_synced = 0
+        objects_synced = 0
+
+        # Sync people
+        for person in people.values():
+            if self.should_persist_person(person):
+                await self.save_person(person)
+                people_synced += 1
+
+        # Sync objects
+        for obj in objects.values():
+            if self.should_persist_object(obj):
+                await self.save_object(obj)
+                objects_synced += 1
+
+        if people_synced or objects_synced:
+            logger.info(
+                f"Synced {people_synced} people and {objects_synced} objects to long-term memory"
+            )
+
+        return people_synced, objects_synced
+
+    async def get_stats(self) -> dict[str, Any]:
+        """Get statistics about long-term memory."""
+        async with self._db.session() as session:
+            people_count = await session.scalar(
+                select(func.count()).select_from(PersonModel)
+            )
+            familiar_count = await session.scalar(
+                select(func.count())
+                .select_from(PersonModel)
+                .where(PersonModel.familiarity_score >= FAMILIARITY_THRESHOLD)
+            )
+            objects_count = await session.scalar(
+                select(func.count()).select_from(ObjectModel)
+            )
+            events_count = await session.scalar(
+                select(func.count()).select_from(EventModel)
+            )
+            embeddings_count = await session.scalar(
+                select(func.count()).select_from(FaceEmbeddingModel)
+            )
+
+            return {
+                "people_total": people_count or 0,
+                "people_familiar": familiar_count or 0,
+                "objects": objects_count or 0,
+                "events": events_count or 0,
+                "face_embeddings": embeddings_count or 0,
+            }
