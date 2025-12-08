@@ -11,6 +11,12 @@ from typing import TYPE_CHECKING, Any
 
 from .memory_types import EventMemory, ObjectMemory, PersonMemory
 from .short_term_memory import ShortTermMemory
+from .spatial_types import (
+    SpatialLandmark,
+    SpatialMapMemory,
+    SpatialObservation,
+    SpatialZone,
+)
 from .working_memory import WorkingMemory
 
 if TYPE_CHECKING:
@@ -75,6 +81,7 @@ class MemorySystem:
             familiarity_growth=familiarity_growth,
             familiarity_decay=familiarity_decay,
         )
+        self.spatial_map = SpatialMapMemory()
         self.long_term = long_term
         self._last_update_time: float = time.time()
         self._last_sync_time: float = time.time()
@@ -273,6 +280,10 @@ class MemorySystem:
         active_person = self.get_active_person()
         recent_events = self.short_term.get_recent_event_types(60.0)
 
+        # Get spatial triggers
+        current_zone = self.spatial_map.current_zone
+        current_landmark = self.spatial_map.current_landmark
+
         return {
             "familiar_person_remembered": (
                 active_person.is_familiar if active_person else False
@@ -290,18 +301,214 @@ class MemorySystem:
             "recently_played": "play" in recent_events,
             "recently_petted": "petting" in recent_events,
             "was_interrupted": self.working.was_interrupted,
+            # Spatial triggers
+            "at_home": self.spatial_map.is_at_home,
+            "at_charger": (
+                current_landmark is not None
+                and current_landmark.landmark_type == "charging_station"
+            ),
+            "in_safe_zone": current_zone is not None and current_zone.is_safe,
+            "in_danger_zone": current_zone is not None and current_zone.is_dangerous,
+            "position_known": self.spatial_map.is_position_known,
+            "position_lost": not self.spatial_map.is_position_known,
+            "near_edge": (
+                current_landmark is not None
+                and current_landmark.landmark_type == "edge"
+            ),
+        }
+
+    # ==================== Spatial Memory Operations ====================
+
+    def update_current_location(
+        self,
+        landmark_id: str | None,
+        zone_id: str | None = None,
+    ) -> None:
+        """
+        Update the robot's current spatial location.
+
+        Args:
+            landmark_id: Nearest landmark ID (or None if position unknown)
+            zone_id: Current zone ID (optional, will be inferred from landmark)
+        """
+        self.spatial_map.update_current_location(landmark_id, zone_id)
+
+        # Record visit to landmark if known
+        if landmark_id:
+            landmark = self.spatial_map.get_landmark(landmark_id)
+            if landmark:
+                landmark.record_visit()
+
+            # Record visit to zone if known
+            zone = self.spatial_map.current_zone
+            if zone:
+                zone.record_visit()
+
+    def record_landmark(
+        self,
+        landmark_id: str,
+        landmark_type: str,
+        name: str | None = None,
+        confidence: float = 0.5,
+    ) -> SpatialLandmark:
+        """
+        Record discovering or visiting a landmark.
+
+        Args:
+            landmark_id: Unique ID for the landmark
+            landmark_type: Type ("charging_station", "edge", "corner", etc.)
+            name: Optional human-readable name
+            confidence: Recognition confidence (0-1)
+
+        Returns:
+            The created or updated landmark
+        """
+        existing = self.spatial_map.get_landmark(landmark_id)
+        if existing:
+            existing.record_visit()
+            existing.confidence = max(existing.confidence, confidence)
+            if name:
+                existing.name = name
+            return existing
+
+        landmark = SpatialLandmark(
+            landmark_id=landmark_id,
+            landmark_type=landmark_type,
+            name=name,
+            confidence=confidence,
+        )
+        self.spatial_map.add_landmark(landmark)
+        return landmark
+
+    def record_zone(
+        self,
+        zone_id: str,
+        zone_type: str,
+        primary_landmark_id: str,
+        name: str | None = None,
+        safety_score: float = 0.5,
+    ) -> SpatialZone:
+        """
+        Record discovering or visiting a zone.
+
+        Args:
+            zone_id: Unique ID for the zone
+            zone_type: Type ("safe", "dangerous", "play_area", etc.)
+            primary_landmark_id: The landmark that anchors this zone
+            name: Optional human-readable name
+            safety_score: Initial safety score (0-1)
+
+        Returns:
+            The created or updated zone
+        """
+        existing = self.spatial_map.get_zone(zone_id)
+        if existing:
+            existing.record_visit()
+            if name:
+                existing.name = name
+            return existing
+
+        zone = SpatialZone(
+            zone_id=zone_id,
+            zone_type=zone_type,
+            primary_landmark_id=primary_landmark_id,
+            name=name,
+            safety_score=safety_score,
+        )
+        self.spatial_map.add_zone(zone)
+        return zone
+
+    def record_spatial_observation(
+        self,
+        entity_type: str,
+        entity_id: str,
+        landmark_id: str,
+        relative_direction: float,
+        relative_distance: float,
+        confidence: float = 0.5,
+    ) -> SpatialObservation:
+        """
+        Record seeing an entity at a location relative to a landmark.
+
+        Args:
+            entity_type: "object" or "person"
+            entity_id: The object_id or person_id
+            landmark_id: Nearest landmark
+            relative_direction: Direction from landmark (degrees, 0=forward)
+            relative_distance: Distance from landmark (cm)
+            confidence: Location confidence (0-1)
+
+        Returns:
+            The created observation
+        """
+        observation = SpatialObservation(
+            entity_type=entity_type,
+            entity_id=entity_id,
+            landmark_id=landmark_id,
+            relative_direction=relative_direction,
+            relative_distance=relative_distance,
+            confidence=confidence,
+        )
+        self.spatial_map.add_observation(observation)
+        return observation
+
+    def record_zone_event(self, event_type: str) -> None:
+        """
+        Record an event occurring in the current zone.
+
+        Args:
+            event_type: Type of event (e.g., "bump", "petting", "play")
+        """
+        zone = self.spatial_map.current_zone
+        if zone:
+            zone.record_event(event_type)
+
+            # Adjust safety based on event
+            if event_type in ("bump", "fall", "drop"):
+                zone.adjust_safety(-0.1)  # Negative events reduce safety
+            elif event_type in ("petting", "play", "rest"):
+                zone.adjust_safety(0.05)  # Positive events increase safety
+
+    def set_home_landmark(self, landmark_id: str) -> None:
+        """Set a landmark as the home base."""
+        self.spatial_map.set_home(landmark_id)
+
+    def get_spatial_context(self) -> dict[str, Any]:
+        """
+        Get spatial context for behavior evaluation.
+
+        Returns:
+            Dictionary with spatial awareness information
+        """
+        current_zone = self.spatial_map.current_zone
+        current_landmark = self.spatial_map.current_landmark
+
+        return {
+            "current_landmark_id": self.spatial_map.current_landmark_id,
+            "current_landmark_type": (
+                current_landmark.landmark_type if current_landmark else None
+            ),
+            "current_zone_id": self.spatial_map.current_zone_id,
+            "current_zone_type": current_zone.zone_type if current_zone else None,
+            "current_zone_safety": current_zone.safety_score if current_zone else 0.5,
+            "at_home": self.spatial_map.is_at_home,
+            "position_known": self.spatial_map.is_position_known,
+            "landmarks_count": len(self.spatial_map.landmarks),
+            "zones_count": len(self.spatial_map.zones),
         }
 
     def clear(self) -> None:
         """Clear all memory state."""
         self.working.clear()
         self.short_term.clear()
+        self.spatial_map = SpatialMapMemory()
 
     def get_state(self) -> dict[str, Any]:
         """Get serializable state for persistence."""
         return {
             "working": self.working.get_state(),
             "short_term": self.short_term.get_state(),
+            "spatial_map": self.spatial_map.get_state(),
             "last_update_time": self._last_update_time,
         }
 
@@ -324,6 +531,8 @@ class MemorySystem:
             system.working = WorkingMemory.from_state(state["working"])
         if "short_term" in state:
             system.short_term = ShortTermMemory.from_state(state["short_term"])
+        if "spatial_map" in state:
+            system.spatial_map = SpatialMapMemory.from_state(state["spatial_map"])
 
         system._last_update_time = state.get("last_update_time", time.time())
         return system
@@ -337,21 +546,28 @@ class MemorySystem:
                 "attention": self.working.attention_target,
             },
             "short_term": self.short_term.summary(),
+            "spatial": {
+                "landmarks": len(self.spatial_map.landmarks),
+                "zones": len(self.spatial_map.zones),
+                "current_landmark": self.spatial_map.current_landmark_id,
+                "current_zone": self.spatial_map.current_zone_id,
+                "at_home": self.spatial_map.is_at_home,
+            },
         }
 
     # ==================== Long-term Memory Integration ====================
 
-    async def initialize_from_database(self) -> int:
+    async def initialize_from_database(self) -> dict[str, int]:
         """
-        Initialize memory by loading familiar people from long-term storage.
+        Initialize memory by loading data from long-term storage.
 
         Call this at startup when using persistent storage.
 
         Returns:
-            Number of familiar people loaded
+            Dictionary with counts of loaded items
         """
         if self.long_term is None:
-            return 0
+            return {"people": 0, "landmarks": 0, "zones": 0}
 
         await self.long_term.initialize()
 
@@ -360,10 +576,21 @@ class MemorySystem:
         for person_id, person in familiar.items():
             self.short_term._people[person_id] = person
 
-        logger.info(f"Loaded {len(familiar)} familiar people from long-term memory")
-        return len(familiar)
+        # Load spatial map from long-term memory
+        self.spatial_map = await self.long_term.load_spatial_map()
 
-    async def sync_to_long_term(self, force: bool = False) -> tuple[int, int]:
+        logger.info(
+            f"Loaded {len(familiar)} familiar people, "
+            f"{len(self.spatial_map.landmarks)} landmarks, "
+            f"{len(self.spatial_map.zones)} zones from long-term memory"
+        )
+        return {
+            "people": len(familiar),
+            "landmarks": len(self.spatial_map.landmarks),
+            "zones": len(self.spatial_map.zones),
+        }
+
+    async def sync_to_long_term(self, force: bool = False) -> dict[str, int]:
         """
         Sync qualifying memories to long-term storage.
 
@@ -371,14 +598,14 @@ class MemorySystem:
             force: If True, sync immediately regardless of interval
 
         Returns:
-            Tuple of (people_synced, objects_synced) counts
+            Dictionary with sync counts
         """
         if self.long_term is None:
-            return 0, 0
+            return {"people": 0, "objects": 0, "events": 0, "spatial": 0}
 
         current_time = time.time()
         if not force and (current_time - self._last_sync_time) < self._sync_interval:
-            return 0, 0
+            return {"people": 0, "objects": 0, "events": 0, "spatial": 0}
 
         self._last_sync_time = current_time
 
@@ -401,7 +628,16 @@ class MemorySystem:
         if events_synced:
             logger.debug(f"Synced {events_synced} events to long-term memory")
 
-        return people_synced, objects_synced
+        # Sync spatial map
+        spatial_counts = await self.long_term.sync_spatial_map(self.spatial_map)
+        spatial_synced = spatial_counts["landmarks"] + spatial_counts["zones"]
+
+        return {
+            "people": people_synced,
+            "objects": objects_synced,
+            "events": events_synced,
+            "spatial": spatial_synced,
+        }
 
     async def shutdown(self) -> None:
         """
@@ -432,4 +668,5 @@ class MemorySystem:
 
     def __str__(self) -> str:
         ltm_str = ", long_term=enabled" if self.long_term else ""
-        return f"MemorySystem({self.working}, {self.short_term}{ltm_str})"
+        spatial_str = f", {len(self.spatial_map.landmarks)} landmarks"
+        return f"MemorySystem({self.working}, {self.short_term}{spatial_str}{ltm_str})"

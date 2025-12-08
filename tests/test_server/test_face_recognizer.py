@@ -578,7 +578,7 @@ class TestFaceRecognizerIntegration:
     @pytest.fixture
     async def memory_system(self):
         """Create a memory system with database."""
-        from server.cognition.memory import MemorySystem
+        from server.cognition.memory import LongTermMemory, MemorySystem
         from server.storage import Database
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -586,8 +586,9 @@ class TestFaceRecognizerIntegration:
             db = Database(db_path)
             await db.initialize()
 
-            memory = MemorySystem()
-            await memory.initialize_long_term(db)
+            ltm = LongTermMemory(db)
+            memory = MemorySystem(long_term=ltm)
+            await memory.initialize_from_database()
 
             yield memory
 

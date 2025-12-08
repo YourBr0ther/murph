@@ -12,13 +12,14 @@
 - [x] Person recognition (FaceNet integration) - 2024-12-08
 - [x] Hardware integration with emulator - 2024-12-08
 - [x] Server main loop integration (CognitionOrchestrator) - 2024-12-08
+- [x] Spatial map storage (environment awareness) - 2024-12-08
 
 ## In Progress
 - [ ] None (ready for next feature)
 
 ## Up Next
-- [ ] Spatial map storage (environment awareness)
 - [ ] WebRTC video streaming integration (connect vision to Pi camera)
+- [ ] Spatial navigation behaviors (use spatial map for exploration)
 
 ## Blockers / Notes
 - None

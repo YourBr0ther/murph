@@ -65,6 +65,15 @@ class WorldContext:
     person_sentiment: float = 0.0
     recent_event_types: list[str] = field(default_factory=list)
 
+    # Spatial awareness (populated by MemorySystem.spatial_map)
+    current_zone_type: str | None = None
+    current_zone_safety: float = 0.5
+    near_known_landmark: bool = False
+    landmark_type_nearby: str | None = None
+    at_home_base: bool = False
+    at_charging_station: bool = False
+    position_confidence: float = 0.0  # 0 = lost, 1 = certain
+
     # Custom triggers (extensible)
     active_triggers: set[str] = field(default_factory=set)
 
@@ -118,6 +127,14 @@ class WorldContext:
             "recently_greeted": "greeting" in self.recent_event_types,
             "recently_played": "play" in self.recent_event_types,
             "recently_petted": "petting" in self.recent_event_types,
+            # Spatial awareness triggers
+            "at_home": self.at_home_base,
+            "at_charger": self.at_charging_station,
+            "in_safe_zone": self.current_zone_safety > 0.7,
+            "in_danger_zone": self.current_zone_safety < 0.3,
+            "position_known": self.position_confidence > 0.5,
+            "position_lost": self.position_confidence < 0.2,
+            "near_landmark": self.near_known_landmark,
         }
 
         return trigger_checks.get(trigger, False)
@@ -147,6 +164,9 @@ class WorldContext:
             # Memory-derived triggers
             "familiar_person_remembered", "positive_history", "negative_sentiment",
             "positive_sentiment", "recently_greeted", "recently_played", "recently_petted",
+            # Spatial awareness triggers
+            "at_home", "at_charger", "in_safe_zone", "in_danger_zone",
+            "position_known", "position_lost", "near_landmark",
         ]
 
         for trigger in computed_triggers:
@@ -177,6 +197,13 @@ class WorldContext:
             "person_interaction_count": self.person_interaction_count,
             "person_sentiment": self.person_sentiment,
             "recent_event_types": self.recent_event_types.copy(),
+            "current_zone_type": self.current_zone_type,
+            "current_zone_safety": self.current_zone_safety,
+            "near_known_landmark": self.near_known_landmark,
+            "landmark_type_nearby": self.landmark_type_nearby,
+            "at_home_base": self.at_home_base,
+            "at_charging_station": self.at_charging_station,
+            "position_confidence": self.position_confidence,
             "active_triggers": list(self.active_triggers),
         }
 
@@ -203,6 +230,13 @@ class WorldContext:
             person_interaction_count=state.get("person_interaction_count", 0),
             person_sentiment=state.get("person_sentiment", 0.0),
             recent_event_types=state.get("recent_event_types", []),
+            current_zone_type=state.get("current_zone_type"),
+            current_zone_safety=state.get("current_zone_safety", 0.5),
+            near_known_landmark=state.get("near_known_landmark", False),
+            landmark_type_nearby=state.get("landmark_type_nearby"),
+            at_home_base=state.get("at_home_base", False),
+            at_charging_station=state.get("at_charging_station", False),
+            position_confidence=state.get("position_confidence", 0.0),
         )
         context.active_triggers = set(state.get("active_triggers", []))
         return context
@@ -234,6 +268,14 @@ class WorldContext:
             },
             "memory": {
                 "recent_events": self.recent_event_types,
+            },
+            "spatial": {
+                "zone_type": self.current_zone_type,
+                "zone_safety": self.current_zone_safety,
+                "at_home": self.at_home_base,
+                "near_landmark": self.near_known_landmark,
+                "landmark_type": self.landmark_type_nearby,
+                "position_confidence": self.position_confidence,
             },
             "active_triggers": self.get_active_triggers(),
         }

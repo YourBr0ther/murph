@@ -480,11 +480,12 @@ class TestMemorySystemIntegration:
         assert memory.long_term is None
 
         # Should not error
-        count = await memory.initialize_from_database()
-        assert count == 0
+        counts = await memory.initialize_from_database()
+        assert counts["people"] == 0
 
         synced = await memory.sync_to_long_term()
-        assert synced == (0, 0)
+        assert synced["people"] == 0
+        assert synced["objects"] == 0
 
     async def test_memory_system_with_long_term(self, database):
         """Test MemorySystem with long-term memory."""
@@ -492,8 +493,8 @@ class TestMemorySystemIntegration:
         memory = MemorySystem(long_term=ltm)
 
         # Initialize from database
-        count = await memory.initialize_from_database()
-        assert count == 0  # Empty database
+        counts = await memory.initialize_from_database()
+        assert counts["people"] == 0  # Empty database
 
     async def test_initialize_loads_familiar_people(self, database):
         """Test that initialization loads familiar people."""
@@ -505,9 +506,9 @@ class TestMemorySystemIntegration:
 
         # Create new memory system with same database
         memory = MemorySystem(long_term=ltm)
-        count = await memory.initialize_from_database()
+        counts = await memory.initialize_from_database()
 
-        assert count == 1
+        assert counts["people"] == 1
         assert "preexisting" in memory.short_term._people
 
     async def test_sync_persists_familiar_people(self, database):

@@ -186,3 +186,128 @@ class EventModel(Base):
             "outcome": self.outcome,
             "strength": self.significance,  # Map significance -> strength
         }
+
+
+class SpatialLandmarkModel(Base):
+    """
+    Long-term memory of a spatial landmark.
+
+    Stored when:
+    - confidence >= 0.6 (reliably recognizable)
+    - OR times_visited >= 5 (frequently visited)
+    - OR landmark_type is critical ("charging_station", "home_base", "edge")
+    """
+
+    __tablename__ = "spatial_landmarks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    landmark_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    landmark_type: Mapped[str] = mapped_column(String(32), index=True)
+    name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    # Timestamps
+    first_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Usage tracking
+    times_visited: Mapped[int] = mapped_column(Integer, default=1)
+    confidence: Mapped[float] = mapped_column(Float, default=0.5)
+
+    # Graph connections: {landmark_id: distance_cm}
+    connections: Mapped[dict] = mapped_column(JSON, default=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for SpatialLandmark.from_state()."""
+        return {
+            "landmark_id": self.landmark_id,
+            "landmark_type": self.landmark_type,
+            "name": self.name,
+            "first_seen": self.first_seen.timestamp(),
+            "last_seen": self.last_seen.timestamp(),
+            "times_visited": self.times_visited,
+            "confidence": self.confidence,
+            "connections": self.connections or {},
+        }
+
+
+class SpatialZoneModel(Base):
+    """
+    Long-term memory of a spatial zone.
+
+    Stored when:
+    - familiarity >= 0.5 (reasonably explored)
+    - OR zone_type is critical ("charging_zone", "edge_zone")
+    """
+
+    __tablename__ = "spatial_zones"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    zone_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    zone_type: Mapped[str] = mapped_column(String(32), index=True)
+    name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    # Reference landmark
+    primary_landmark_id: Mapped[str] = mapped_column(String(64), index=True)
+
+    # Experience-based scores
+    safety_score: Mapped[float] = mapped_column(Float, default=0.5)
+    familiarity: Mapped[float] = mapped_column(Float, default=0.0)
+
+    # Events that occurred here
+    associated_events: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+    last_visited: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for SpatialZone.from_state()."""
+        return {
+            "zone_id": self.zone_id,
+            "zone_type": self.zone_type,
+            "name": self.name,
+            "primary_landmark_id": self.primary_landmark_id,
+            "safety_score": self.safety_score,
+            "familiarity": self.familiarity,
+            "associated_events": self.associated_events or [],
+            "last_visited": self.last_visited.timestamp(),
+        }
+
+
+class SpatialObservationModel(Base):
+    """
+    Long-term memory of a significant spatial observation.
+
+    Stored when:
+    - Entity is important (familiar person or interesting object)
+    - AND confidence >= 0.5
+    """
+
+    __tablename__ = "spatial_observations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    observation_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+
+    # What was observed
+    entity_type: Mapped[str] = mapped_column(String(16))  # "object" or "person"
+    entity_id: Mapped[str] = mapped_column(String(64), index=True)
+
+    # Where it was observed (relative to landmark)
+    landmark_id: Mapped[str] = mapped_column(String(64), index=True)
+    relative_direction: Mapped[float] = mapped_column(Float)  # degrees
+    relative_distance: Mapped[float] = mapped_column(Float)  # cm
+
+    # Metadata
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    confidence: Mapped[float] = mapped_column(Float, default=0.5)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for SpatialObservation.from_state()."""
+        return {
+            "observation_id": self.observation_id,
+            "entity_type": self.entity_type,
+            "entity_id": self.entity_id,
+            "landmark_id": self.landmark_id,
+            "relative_direction": self.relative_direction,
+            "relative_distance": self.relative_distance,
+            "timestamp": self.timestamp.timestamp(),
+            "confidence": self.confidence,
+        }

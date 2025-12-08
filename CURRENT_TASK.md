@@ -3,39 +3,44 @@
 ## Status: Ready for Next Feature
 
 ## Previous Task Completed
-Server main loop integration (CognitionOrchestrator) - 2024-12-08
+Spatial map storage (environment awareness) - 2024-12-08
 
 ## Next Feature Options (from PROGRESS.md)
-1. Spatial map storage (environment awareness)
-2. WebRTC video streaming integration (connect vision to Pi camera)
+1. WebRTC video streaming integration (connect vision to Pi camera)
+2. Spatial navigation behaviors (use spatial map for exploration)
 
 ## Notes
-Server main loop integration is complete with:
+Spatial map storage is complete with:
 
-### CognitionOrchestrator (server/orchestrator.py)
-Central orchestrator that wires all cognitive components together:
-- Three concurrent async loops with different cycle times:
-  - Perception loop (100ms/10Hz): Updates WorldContext from sensors
-  - Cognition loop (200ms/5Hz): Decays needs, selects behaviors
-  - Execution loop (50ms/20Hz): Ticks behavior trees, dispatches actions
-- Graceful startup/shutdown with signal handling
-- Pi disconnection recovery (resets state, stops behaviors)
-- Behavior completion handling (applies need_effects to NeedsSystem)
+### Spatial Types (server/cognition/memory/spatial_types.py)
+Four dataclasses for spatial awareness:
+- **SpatialLandmark**: Recognizable reference points (charging_station, edge, corner, home_base)
+- **SpatialZone**: Behavioral areas with safety scores (safe, dangerous, play_area)
+- **SpatialObservation**: Where objects/people were seen relative to landmarks
+- **SpatialMapMemory**: Container combining landmarks, zones, and observations
+
+### Database Models (server/storage/models.py)
+Three new SQLAlchemy models for persistence:
+- SpatialLandmarkModel: Stores landmarks with connections graph
+- SpatialZoneModel: Stores zones with safety/familiarity scores
+- SpatialObservationModel: Stores location observations
+
+### Persistence Criteria
+- Landmarks: confidence >= 0.6 OR visits >= 5 OR critical type (charging_station, home_base, edge)
+- Zones: familiarity >= 0.5 OR critical type (charging_zone, edge_zone)
+- Observations: entity is important AND confidence >= 0.5
 
 ### Integration Points
-- PiConnectionManager → SensorProcessor (sensor callbacks)
-- SensorProcessor → WorldContext (update_world_context)
-- BehaviorEvaluator.select_best() → BehaviorTreeExecutor.start_behavior()
-- BehaviorTreeExecutor → ActionDispatcher.create_callback() → Pi commands
-- On completion: behavior.need_effects applied to NeedsSystem
+- MemorySystem.spatial_map: Contains current spatial state
+- MemorySystem.record_landmark/zone/observation(): Create spatial entities
+- MemorySystem.update_current_location(): Track robot position
+- WorldContext: 7 new spatial fields and triggers
+- LongTermMemory: load_spatial_map() and sync_spatial_map() for persistence
 
-### Main Entry Point (server/main.py)
-- Creates CognitionOrchestrator
-- Sets up SIGINT/SIGTERM signal handlers
-- Runs until shutdown signal received
-- Graceful cleanup on exit
+### WorldContext Spatial Triggers
+- at_home, at_charger, in_safe_zone, in_danger_zone
+- position_known, position_lost, near_landmark
 
 ### Test Coverage
-- 27 new tests for orchestrator (423 total passing)
-- Tests for initialization, lifecycle, callbacks, behavior completion
-- Integration tests for full cognitive cycle
+- 56 new tests for spatial memory (458 total passing)
+- Tests for all spatial types, database operations, and MemorySystem integration

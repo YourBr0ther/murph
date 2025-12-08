@@ -16,9 +16,18 @@ from server.storage import (
     FaceEmbeddingModel,
     ObjectModel,
     PersonModel,
+    SpatialLandmarkModel,
+    SpatialObservationModel,
+    SpatialZoneModel,
 )
 
 from .memory_types import EventMemory, ObjectMemory, PersonMemory
+from .spatial_types import (
+    SpatialLandmark,
+    SpatialMapMemory,
+    SpatialObservation,
+    SpatialZone,
+)
 
 logger = logging.getLogger("murph.memory.long_term")
 
@@ -27,6 +36,16 @@ logger = logging.getLogger("murph.memory.long_term")
 FAMILIARITY_THRESHOLD = 50.0  # Matches PersonMemory.is_familiar
 OBJECT_SIGHTING_THRESHOLD = 10  # Times seen before considered noteworthy
 EVENT_SIGNIFICANCE_THRESHOLD = 0.7  # Minimum significance to store
+
+# Spatial memory thresholds
+LANDMARK_CONFIDENCE_THRESHOLD = 0.6  # Minimum confidence to persist
+LANDMARK_VISIT_THRESHOLD = 5  # Visits before noteworthy
+ZONE_FAMILIARITY_THRESHOLD = 0.5  # Minimum familiarity to persist
+OBSERVATION_CONFIDENCE_THRESHOLD = 0.5  # Minimum confidence for observations
+
+# Critical types that are always persisted
+CRITICAL_LANDMARK_TYPES = {"charging_station", "home_base", "edge"}
+CRITICAL_ZONE_TYPES = {"charging_zone", "edge_zone"}
 
 
 class LongTermMemory:
@@ -551,6 +570,15 @@ class LongTermMemory:
             embeddings_count = await session.scalar(
                 select(func.count()).select_from(FaceEmbeddingModel)
             )
+            landmarks_count = await session.scalar(
+                select(func.count()).select_from(SpatialLandmarkModel)
+            )
+            zones_count = await session.scalar(
+                select(func.count()).select_from(SpatialZoneModel)
+            )
+            observations_count = await session.scalar(
+                select(func.count()).select_from(SpatialObservationModel)
+            )
 
             return {
                 "people_total": people_count or 0,
@@ -558,4 +586,310 @@ class LongTermMemory:
                 "objects": objects_count or 0,
                 "events": events_count or 0,
                 "face_embeddings": embeddings_count or 0,
+                "landmarks": landmarks_count or 0,
+                "zones": zones_count or 0,
+                "spatial_observations": observations_count or 0,
             }
+
+    # ==================== Spatial Landmark Operations ====================
+
+    async def get_landmark(self, landmark_id: str) -> SpatialLandmark | None:
+        """Load a landmark from long-term memory."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(SpatialLandmarkModel).where(
+                    SpatialLandmarkModel.landmark_id == landmark_id
+                )
+            )
+            model = result.scalar_one_or_none()
+            return SpatialLandmark.from_state(model.to_dict()) if model else None
+
+    async def save_landmark(self, landmark: SpatialLandmark) -> None:
+        """Save or update a landmark in long-term memory."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(SpatialLandmarkModel).where(
+                    SpatialLandmarkModel.landmark_id == landmark.landmark_id
+                )
+            )
+            model = result.scalar_one_or_none()
+
+            if model is None:
+                model = SpatialLandmarkModel(
+                    landmark_id=landmark.landmark_id,
+                    landmark_type=landmark.landmark_type,
+                    name=landmark.name,
+                    first_seen=datetime.fromtimestamp(landmark.first_seen),
+                    last_seen=datetime.fromtimestamp(landmark.last_seen),
+                    times_visited=landmark.times_visited,
+                    confidence=landmark.confidence,
+                    connections=landmark.connections,
+                )
+                session.add(model)
+                logger.debug(f"Created new landmark record: {landmark.landmark_id}")
+            else:
+                model.landmark_type = landmark.landmark_type
+                model.name = landmark.name
+                model.last_seen = datetime.fromtimestamp(landmark.last_seen)
+                model.times_visited = landmark.times_visited
+                model.confidence = landmark.confidence
+                model.connections = landmark.connections
+                logger.debug(f"Updated landmark record: {landmark.landmark_id}")
+
+            await session.commit()
+
+    async def get_all_landmarks(self) -> list[SpatialLandmark]:
+        """Get all landmarks from long-term memory."""
+        async with self._db.session() as session:
+            result = await session.execute(select(SpatialLandmarkModel))
+            models = result.scalars().all()
+            return [SpatialLandmark.from_state(m.to_dict()) for m in models]
+
+    async def get_landmarks_by_type(self, landmark_type: str) -> list[SpatialLandmark]:
+        """Get landmarks of a specific type."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(SpatialLandmarkModel).where(
+                    SpatialLandmarkModel.landmark_type == landmark_type
+                )
+            )
+            models = result.scalars().all()
+            return [SpatialLandmark.from_state(m.to_dict()) for m in models]
+
+    def should_persist_landmark(self, landmark: SpatialLandmark) -> bool:
+        """
+        Determine if a landmark should be persisted.
+
+        Criteria:
+        - Confidence >= 0.6 (reliably recognizable)
+        - OR times_visited >= 5 (frequently visited)
+        - OR is a critical type (charging_station, home_base, edge)
+        """
+        return (
+            landmark.confidence >= LANDMARK_CONFIDENCE_THRESHOLD
+            or landmark.times_visited >= LANDMARK_VISIT_THRESHOLD
+            or landmark.landmark_type in CRITICAL_LANDMARK_TYPES
+        )
+
+    # ==================== Spatial Zone Operations ====================
+
+    async def get_zone(self, zone_id: str) -> SpatialZone | None:
+        """Load a zone from long-term memory."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(SpatialZoneModel).where(SpatialZoneModel.zone_id == zone_id)
+            )
+            model = result.scalar_one_or_none()
+            return SpatialZone.from_state(model.to_dict()) if model else None
+
+    async def save_zone(self, zone: SpatialZone) -> None:
+        """Save or update a zone in long-term memory."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(SpatialZoneModel).where(SpatialZoneModel.zone_id == zone.zone_id)
+            )
+            model = result.scalar_one_or_none()
+
+            if model is None:
+                model = SpatialZoneModel(
+                    zone_id=zone.zone_id,
+                    zone_type=zone.zone_type,
+                    name=zone.name,
+                    primary_landmark_id=zone.primary_landmark_id,
+                    safety_score=zone.safety_score,
+                    familiarity=zone.familiarity,
+                    associated_events=zone.associated_events,
+                    last_visited=datetime.fromtimestamp(zone.last_visited),
+                )
+                session.add(model)
+                logger.debug(f"Created new zone record: {zone.zone_id}")
+            else:
+                model.zone_type = zone.zone_type
+                model.name = zone.name
+                model.primary_landmark_id = zone.primary_landmark_id
+                model.safety_score = zone.safety_score
+                model.familiarity = zone.familiarity
+                model.associated_events = zone.associated_events
+                model.last_visited = datetime.fromtimestamp(zone.last_visited)
+                logger.debug(f"Updated zone record: {zone.zone_id}")
+
+            await session.commit()
+
+    async def get_all_zones(self) -> list[SpatialZone]:
+        """Get all zones from long-term memory."""
+        async with self._db.session() as session:
+            result = await session.execute(select(SpatialZoneModel))
+            models = result.scalars().all()
+            return [SpatialZone.from_state(m.to_dict()) for m in models]
+
+    async def get_zones_by_type(self, zone_type: str) -> list[SpatialZone]:
+        """Get zones of a specific type."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(SpatialZoneModel).where(SpatialZoneModel.zone_type == zone_type)
+            )
+            models = result.scalars().all()
+            return [SpatialZone.from_state(m.to_dict()) for m in models]
+
+    def should_persist_zone(self, zone: SpatialZone) -> bool:
+        """
+        Determine if a zone should be persisted.
+
+        Criteria:
+        - Familiarity >= 0.5 (reasonably explored)
+        - OR is a critical type (charging_zone, edge_zone)
+        """
+        return (
+            zone.familiarity >= ZONE_FAMILIARITY_THRESHOLD
+            or zone.zone_type in CRITICAL_ZONE_TYPES
+        )
+
+    # ==================== Spatial Observation Operations ====================
+
+    async def save_observation(self, observation: SpatialObservation) -> None:
+        """Save a spatial observation to long-term memory."""
+        async with self._db.session() as session:
+            # Check if already exists
+            result = await session.execute(
+                select(SpatialObservationModel).where(
+                    SpatialObservationModel.observation_id == observation.observation_id
+                )
+            )
+            if result.scalar_one_or_none() is not None:
+                return  # Already saved
+
+            model = SpatialObservationModel(
+                observation_id=observation.observation_id,
+                entity_type=observation.entity_type,
+                entity_id=observation.entity_id,
+                landmark_id=observation.landmark_id,
+                relative_direction=observation.relative_direction,
+                relative_distance=observation.relative_distance,
+                timestamp=datetime.fromtimestamp(observation.timestamp),
+                confidence=observation.confidence,
+            )
+            session.add(model)
+            await session.commit()
+            logger.debug(
+                f"Saved observation: {observation.entity_type}:{observation.entity_id}"
+            )
+
+    async def get_observations_for_entity(
+        self, entity_id: str, limit: int = 10
+    ) -> list[SpatialObservation]:
+        """Get recent observations of a specific entity."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(SpatialObservationModel)
+                .where(SpatialObservationModel.entity_id == entity_id)
+                .order_by(SpatialObservationModel.timestamp.desc())
+                .limit(limit)
+            )
+            models = result.scalars().all()
+            return [SpatialObservation.from_state(m.to_dict()) for m in models]
+
+    async def get_observations_near_landmark(
+        self, landmark_id: str, limit: int = 20
+    ) -> list[SpatialObservation]:
+        """Get observations near a specific landmark."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(SpatialObservationModel)
+                .where(SpatialObservationModel.landmark_id == landmark_id)
+                .order_by(SpatialObservationModel.timestamp.desc())
+                .limit(limit)
+            )
+            models = result.scalars().all()
+            return [SpatialObservation.from_state(m.to_dict()) for m in models]
+
+    def should_persist_observation(
+        self, observation: SpatialObservation, entity_is_important: bool
+    ) -> bool:
+        """
+        Determine if an observation should be persisted.
+
+        Criteria:
+        - Entity is important (familiar person or interesting object)
+        - AND confidence >= 0.5
+        """
+        return (
+            entity_is_important
+            and observation.confidence >= OBSERVATION_CONFIDENCE_THRESHOLD
+        )
+
+    # ==================== Spatial Map Bulk Operations ====================
+
+    async def load_spatial_map(self) -> SpatialMapMemory:
+        """
+        Load the full spatial map from long-term storage.
+
+        Returns:
+            SpatialMapMemory populated with persisted data
+        """
+        landmarks = await self.get_all_landmarks()
+        zones = await self.get_all_zones()
+
+        # Build dictionaries
+        landmarks_dict = {lm.landmark_id: lm for lm in landmarks}
+        zones_dict = {z.zone_id: z for z in zones}
+
+        # Find home landmark if any
+        home_landmark_id = None
+        for lm in landmarks:
+            if lm.landmark_type == "home_base":
+                home_landmark_id = lm.landmark_id
+                break
+
+        spatial_map = SpatialMapMemory(
+            landmarks=landmarks_dict,
+            zones=zones_dict,
+            observations=[],  # Observations not loaded from DB (too transient)
+            home_landmark_id=home_landmark_id,
+        )
+
+        logger.info(
+            f"Loaded spatial map: {len(landmarks)} landmarks, {len(zones)} zones"
+        )
+        return spatial_map
+
+    async def sync_spatial_map(
+        self, spatial_map: SpatialMapMemory
+    ) -> dict[str, int]:
+        """
+        Sync qualifying spatial data to long-term storage.
+
+        Args:
+            spatial_map: The spatial map to sync
+
+        Returns:
+            Dict with counts: {"landmarks": n, "zones": n, "observations": n}
+        """
+        landmarks_synced = 0
+        zones_synced = 0
+        observations_synced = 0
+
+        # Sync landmarks
+        for landmark in spatial_map.landmarks.values():
+            if self.should_persist_landmark(landmark):
+                await self.save_landmark(landmark)
+                landmarks_synced += 1
+
+        # Sync zones
+        for zone in spatial_map.zones.values():
+            if self.should_persist_zone(zone):
+                await self.save_zone(zone)
+                zones_synced += 1
+
+        # Note: Observations are typically not bulk-synced since they're transient
+        # They can be saved individually when deemed important
+
+        if landmarks_synced or zones_synced:
+            logger.info(
+                f"Synced spatial map: {landmarks_synced} landmarks, {zones_synced} zones"
+            )
+
+        return {
+            "landmarks": landmarks_synced,
+            "zones": zones_synced,
+            "observations": observations_synced,
+        }
