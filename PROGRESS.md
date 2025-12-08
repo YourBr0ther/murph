@@ -4,9 +4,10 @@
 
 ## Completed Features
 - [x] Project structure initialized with Poetry - 53b1d1c - 2024-12-08
+- [x] Needs system with time-based decay - 78f20e1 - 2024-12-08
 
 ## In Progress
-- [ ] Needs system with time-based decay (see CURRENT_TASK.md)
+- [ ] None (ready for next feature)
 
 ## Up Next
 - [ ] Utility AI behavior evaluator
@@ -15,4 +16,4 @@
 - [ ] Working + short-term memory
 
 ## Blockers / Notes
-- None currently
+- Python venv not installed on system (need `apt install python3.12-venv` for pytest)
