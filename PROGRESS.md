@@ -1,20 +1,18 @@
 # Murph Development Progress
 
-## Current Phase: Phase 1 - Foundation
+## Current Phase: Phase 3 - Cognition Core
 
 ## Completed Features
 - [x] Project structure initialized with Poetry - 53b1d1c - 2024-12-08
 
 ## In Progress
-- [ ] None (ready for next feature)
+- [ ] Needs system with time-based decay (see CURRENT_TASK.md)
 
 ## Up Next
-- [ ] WebSocket communication (Pi ↔ Server)
-- [ ] Motor controller with safety limits
-- [ ] OLED display driver with static expressions
-- [ ] IMU driver (MPU6050) with event detection
-- [ ] Local physical reactions (picked up, bump, fall)
-- [ ] Basic camera streaming
+- [ ] Utility AI behavior evaluator
+- [ ] Behavior tree executor
+- [ ] Core behaviors (explore, greet, play, rest, nuzzle)
+- [ ] Working + short-term memory
 
 ## Blockers / Notes
 - None currently
