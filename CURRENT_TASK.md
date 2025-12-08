@@ -3,20 +3,22 @@
 ## Status: Ready for Next Feature
 
 ## Previous Task Completed
-Long-term memory (persistent storage) - 2024-12-08
+Person recognition with FaceNet - 2024-12-08
 
 ## Next Feature Options (from PROGRESS.md)
 1. Core behaviors - hardware integration (trees are implemented)
-2. Person recognition with FaceNet (embeddings storage ready)
-3. Spatial map storage (environment awareness)
+2. Spatial map storage (environment awareness)
+3. WebRTC video streaming integration (connect vision to Pi camera)
 
 ## Notes
-Long-term memory system is complete with:
-- SQLite database with SQLAlchemy 2.0 async support
-- PersonModel, ObjectModel, EventModel, FaceEmbeddingModel
-- LongTermMemory class with full CRUD operations
-- Face embedding storage and similarity search (128-dim FaceNet)
-- Persistence criteria (familiar people, interesting objects, significant events)
-- Integration with MemorySystem facade (initialize_from_database, sync_to_long_term, shutdown)
-- trust_score field added to PersonMemory (0-100, default 50)
-- Comprehensive test suite (40 new tests, 241 total tests passing)
+Person recognition system is complete with:
+- FaceDetector: MTCNN wrapper for face detection in video frames
+- FaceEncoder: InceptionResnetV1 with 128-dim projection layer
+- FaceRecognizer: Full pipeline orchestrating detection, encoding, and memory lookup
+- PersonTracker: Cross-frame tracking with IoU and embedding similarity
+- Data types: DetectedFace, FaceEncoding, RecognitionResult, TrackedPerson
+- Integration with existing MemorySystem.lookup_person_by_face()
+- Match confirmation logic (3 consecutive matches required)
+- Quality-based filtering for embedding storage
+- Face recognition constants added to shared/constants.py
+- Comprehensive test suite (73 new tests, 314 total tests passing)

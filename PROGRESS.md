@@ -9,14 +9,15 @@
 - [x] Behavior tree executor (py-trees integration) - 2024-12-08
 - [x] Working + short-term memory system - 2024-12-08
 - [x] Long-term memory (persistent storage) - 2024-12-08
+- [x] Person recognition (FaceNet integration) - 2024-12-08
 
 ## In Progress
 - [ ] None (ready for next feature)
 
 ## Up Next
 - [ ] Core behaviors (explore, greet, play, rest, nuzzle) - trees implemented, need hardware integration
-- [ ] Person recognition (FaceNet integration) - embedding storage ready
 - [ ] Spatial map storage (environment awareness)
+- [ ] WebRTC video streaming integration (connect vision to Pi camera)
 
 ## Blockers / Notes
 - None

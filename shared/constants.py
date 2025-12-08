@@ -36,3 +36,11 @@ SHAKE_FREQUENCY_THRESHOLD = 3.0  # Hz
 DISPLAY_WIDTH = 128
 DISPLAY_HEIGHT = 64
 ANIMATION_FPS = 30
+
+# Face Recognition
+FACE_DETECTION_MIN_SIZE = 40  # Minimum face size in pixels
+FACE_DETECTION_CONFIDENCE = 0.9  # Detection confidence threshold
+FACE_MATCH_THRESHOLD = 0.6  # Cosine similarity threshold for matches
+FACE_QUALITY_THRESHOLD = 0.5  # Minimum quality to save embeddings
+FACE_CONFIRMATION_FRAMES = 3  # Consecutive matches needed for identity confirmation
+FACE_TRACK_TIMEOUT_FRAMES = 10  # Frames without detection before dropping track
