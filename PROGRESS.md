@@ -3,10 +3,10 @@
 ## Current Phase: Phase 1 - Foundation
 
 ## Completed Features
-- [x] Project structure initialized with Poetry - 2024-12-08
+- [x] Project structure initialized with Poetry - 53b1d1c - 2024-12-08
 
 ## In Progress
-- [ ] Initial project scaffolding (see CURRENT_TASK.md)
+- [ ] None (ready for next feature)
 
 ## Up Next
 - [ ] WebSocket communication (Pi ↔ Server)
