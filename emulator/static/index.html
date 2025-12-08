@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Murph Emulator</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Murph Emulator</h1>
+            <span id="connection" class="status disconnected">Disconnected</span>
+        </header>
+
+        <main>
+            <section class="visualization">
+                <div class="robot-container">
+                    <div class="robot" id="robot">
+                        <div class="face" id="face">
+                            <div class="eyes">
+                                <div class="eye left"></div>
+                                <div class="eye right"></div>
+                            </div>
+                            <div class="mouth"></div>
+                        </div>
+                        <div class="direction-indicator"></div>
+                    </div>
+                    <div class="trail" id="trail"></div>
+                </div>
+
+                <div class="info-panel">
+                    <div class="stat">
+                        <label>Position</label>
+                        <span id="position">(0.0, 0.0)</span>
+                    </div>
+                    <div class="stat">
+                        <label>Heading</label>
+                        <span id="heading">0°</span>
+                    </div>
+                    <div class="stat">
+                        <label>Expression</label>
+                        <span id="expression">neutral</span>
+                    </div>
+                    <div class="stat">
+                        <label>Sound</label>
+                        <span id="sound">-</span>
+                    </div>
+                    <div class="stat">
+                        <label>Moving</label>
+                        <span id="moving">No</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="controls">
+                <h2>Sensor Simulation</h2>
+                <div class="button-group">
+                    <button onclick="simulateTouch()" class="btn touch">
+                        <span class="icon">👆</span>
+                        Pet
+                    </button>
+                    <button onclick="simulateRelease()" class="btn">
+                        <span class="icon">✋</span>
+                        Release
+                    </button>
+                    <button onclick="simulatePickup()" class="btn pickup">
+                        <span class="icon">🖐️</span>
+                        Pick Up
+                    </button>
+                    <button onclick="simulateBump()" class="btn bump">
+                        <span class="icon">💥</span>
+                        Bump
+                    </button>
+                    <button onclick="simulateShake()" class="btn shake">
+                        <span class="icon">🌀</span>
+                        Shake
+                    </button>
+                </div>
+            </section>
+
+            <section class="state-panel">
+                <h2>Raw State</h2>
+                <pre id="state">Waiting for connection...</pre>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/emulator.js"></script>
+</body>
+</html>

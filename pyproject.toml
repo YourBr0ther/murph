@@ -8,6 +8,7 @@ packages = [
     { include = "pi" },
     { include = "server" },
     { include = "shared" },
+    { include = "emulator" },
 ]
 
 [tool.poetry.dependencies]

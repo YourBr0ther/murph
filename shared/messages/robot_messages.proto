@@ -1,0 +1,153 @@
+// Murph Robot - Protocol Buffer Message Definitions
+// Defines all messages for server <-> Pi communication
+
+syntax = "proto3";
+package murph;
+
+// =============================================================================
+// COMMAND MESSAGES (Server -> Pi)
+// =============================================================================
+
+// Motor control command
+message MotorCommand {
+    enum Direction {
+        STOP = 0;
+        FORWARD = 1;
+        BACKWARD = 2;
+        LEFT = 3;
+        RIGHT = 4;
+    }
+    Direction direction = 1;
+    float speed = 2;           // 0.0-1.0 normalized
+    float duration_ms = 3;     // 0 = until stopped
+}
+
+// Turn command
+message TurnCommand {
+    float angle_degrees = 1;   // positive = clockwise
+    float speed = 2;           // 0.0-1.0 normalized
+}
+
+// Expression display command
+message ExpressionCommand {
+    string expression_name = 1;  // "happy", "sad", "curious", etc.
+}
+
+// Sound playback command
+message SoundCommand {
+    string sound_name = 1;     // "greeting", "happy", etc.
+    float volume = 2;          // 0.0-1.0
+}
+
+// Scan command (looking around)
+message ScanCommand {
+    enum ScanType {
+        QUICK = 0;    // 90 degrees
+        PARTIAL = 1;  // 180 degrees
+        FULL = 2;     // 360 degrees
+    }
+    ScanType scan_type = 1;
+}
+
+// Unified command wrapper
+message Command {
+    uint64 sequence_id = 1;
+    uint64 timestamp_ms = 2;
+
+    oneof command {
+        MotorCommand motor = 10;
+        TurnCommand turn = 11;
+        ExpressionCommand expression = 12;
+        SoundCommand sound = 13;
+        ScanCommand scan = 14;
+        bool stop = 15;          // Emergency stop
+    }
+}
+
+// Command acknowledgment
+message CommandAck {
+    uint64 sequence_id = 1;
+    bool success = 2;
+    string error_message = 3;
+}
+
+// =============================================================================
+// SENSOR MESSAGES (Pi -> Server)
+// =============================================================================
+
+// IMU sensor data
+message IMUData {
+    float accel_x = 1;
+    float accel_y = 2;
+    float accel_z = 3;
+    float gyro_x = 4;
+    float gyro_y = 5;
+    float gyro_z = 6;
+    float temperature = 7;
+}
+
+// Touch sensor data
+message TouchData {
+    repeated uint32 touched_electrodes = 1;  // MPR121 has 12 electrodes
+    bool is_touched = 2;
+}
+
+// Motor encoder/state feedback
+message MotorState {
+    float left_speed = 1;
+    float right_speed = 2;
+    bool is_moving = 3;
+}
+
+// Unified sensor data wrapper
+message SensorData {
+    uint64 timestamp_ms = 1;
+
+    oneof data {
+        IMUData imu = 10;
+        TouchData touch = 11;
+        MotorState motor_state = 12;
+    }
+}
+
+// Local behavior triggered on Pi
+message LocalTrigger {
+    string trigger_name = 1;   // "picked_up", "bump", "falling", etc.
+    float intensity = 2;       // 0.0-1.0
+    uint64 timestamp_ms = 3;
+}
+
+// =============================================================================
+// CONNECTION/STATE MESSAGES
+// =============================================================================
+
+// Heartbeat for connection health
+message Heartbeat {
+    uint64 timestamp_ms = 1;
+    uint32 sequence = 2;
+}
+
+// Pi status report
+message PiStatus {
+    float cpu_temp = 1;
+    float cpu_usage = 2;
+    float memory_usage = 3;
+    bool hardware_ok = 4;
+}
+
+// =============================================================================
+// TOP-LEVEL MESSAGE ENVELOPE
+// =============================================================================
+
+message RobotMessage {
+    uint64 timestamp_ms = 1;
+
+    oneof payload {
+        Command command = 10;
+        CommandAck command_ack = 11;
+        SensorData sensor = 20;
+        LocalTrigger local_trigger = 21;
+        Heartbeat heartbeat = 30;
+        PiStatus status = 31;
+    }
+}
