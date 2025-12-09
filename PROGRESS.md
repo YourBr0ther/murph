@@ -14,13 +14,13 @@
 - [x] Server main loop integration (CognitionOrchestrator) - 2024-12-08
 - [x] Spatial map storage (environment awareness) - 2024-12-08
 - [x] WebRTC video streaming integration - 2024-12-09
+- [x] Conditional + Loneliness behaviors - 2024-12-09
 
 ## In Progress
 - [ ] None (ready for next feature)
 
 ## Up Next
 - [ ] Spatial navigation behaviors (use spatial map for exploration)
-- [ ] Basic behaviors (idle, seek_attention, explore)
 
 ## Blockers / Notes
 - None

@@ -3,48 +3,48 @@
 ## Status: Ready for Next Feature
 
 ## Previous Task Completed
-WebRTC video streaming integration - 2024-12-09
+Conditional + Loneliness Behaviors - 2024-12-09
 
 ## Next Feature Options (from PROGRESS.md)
 1. Spatial navigation behaviors (use spatial map for exploration)
-2. Basic behaviors (idle, seek_attention, explore)
 
 ## Notes
-WebRTC video streaming integration is complete with:
+Conditional and loneliness behaviors implementation is complete with:
 
-### Message Types (shared/messages/types.py)
-Three new WebRTC signaling message types:
-- **WebRTCOffer**: SDP offer message (type=40)
-- **WebRTCAnswer**: SDP answer message (type=41)
-- **WebRTCIceCandidate**: ICE candidate exchange (type=42)
+### New Loneliness Behaviors (4 new)
+- **sigh**: Express loneliness with sad sound/expression (triggered by "lonely")
+- **mope**: Slow, sad movement when very lonely (triggered by "very_lonely")
+- **perk_up_hopeful**: Quick hopeful look around for someone (triggered by "lonely")
+- **seek_company**: Actively search for people, react with joy if found (triggered by "lonely"/"very_lonely")
 
-### Video Constants (shared/constants.py)
-- VIDEO_WIDTH = 640, VIDEO_HEIGHT = 480, VIDEO_FPS = 10
-- VIDEO_BITRATE_KBPS = 1500, VIDEO_CODEC = "h264"
-- VISION_RESULT_TTL_MS = 500, VISION_FRAME_STALE_MS = 2000
+### Conditional Behavior Trees (3 refactored)
+Using py-trees Selector composite with memory=False for condition re-evaluation:
 
-### Server Video Components (server/video/)
-- **FrameBuffer**: Thread-safe single-frame buffer with latest-frame semantics
-- **VideoReceiver**: aiortc RTCPeerConnection for receiving video
-- **VisionProcessor**: Wraps FaceRecognizer + PersonTracker with skip-if-busy semantics
+- **explore**: Now reacts when person appears mid-exploration (PersonDetectedCondition)
+  - If person within 150cm: express happiness, greet, and stop
+  - Otherwise: continue normal exploration
 
-### Pi Video Components (pi/video/)
-- **CameraManager**: picamera2 wrapper with H.264 hardware encoding
-- **VideoStreamer**: aiortc RTCPeerConnection for streaming to server
+- **wander**: Now reacts when near edge (TriggerActiveCondition("near_edge"))
+  - If near edge: alert expression, stop, back up, turn 180°
+  - Otherwise: continue normal wandering
 
-### Integration Points
-- Server orchestrator perception loop processes frames from FrameBuffer
-- Vision results update WorldContext fields (person_detected, person_is_familiar, etc.)
-- WebSocket signaling extended for SDP/ICE exchange on both Pi and server
-- Pi main.py initializes video components and auto-reconnects on failure
+- **seek_company**: Conditional tree that celebrates finding someone
+  - If person found: express happiness, play sound, approach
+  - Otherwise: scan, move around, end sad
 
-### Architecture
-```
-Pi Camera (picamera2) → VideoStreamer (aiortc) → WebRTC → VideoReceiver (aiortc) → FrameBuffer → VisionProcessor → WorldContext
-                                    ↓                              ↓
-                          WebSocket signaling (SDP/ICE)
-```
+### Files Modified
+- `server/cognition/behavior/actions.py` - Added "sigh" sound (1.5s duration)
+- `server/cognition/behavior/behavior_registry.py` - Added 4 loneliness behaviors
+- `server/cognition/behavior/trees.py` - Added 4 loneliness trees, refactored explore/wander/seek_company
+- `tests/test_server/test_loneliness_behaviors.py` - 23 new tests
+- `tests/test_server/test_behavior_executor.py` - Updated tree count assertion
 
 ### Test Coverage
-- 54 new tests for WebRTC messages, FrameBuffer, and VisionProcessor
-- 534 total tests passing
+- 23 new tests for loneliness behaviors and conditional trees
+- 557 total tests passing
+
+### Loneliness Trigger System
+- `lonely` trigger activates after 5 minutes without interaction
+- `very_lonely` trigger activates after 10 minutes without interaction
+- Loneliness behaviors get opportunity bonus from these triggers
+- Behaviors have cooldowns to prevent repetitive expression (60s-180s)

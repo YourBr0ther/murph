@@ -6,7 +6,7 @@ Creates behavior trees for each behavior type.
 from typing import Callable
 
 import py_trees
-from py_trees.composites import Sequence
+from py_trees.composites import Selector, Sequence
 
 from .actions import (
     MoveAction,
@@ -17,6 +17,7 @@ from .actions import (
     ScanAction,
     StopAction,
 )
+from .conditions import PersonDetectedCondition, TriggerActiveCondition
 
 
 class BehaviorTreeFactory:
@@ -87,16 +88,34 @@ class BehaviorTreeFactory:
 
 @BehaviorTreeFactory.register_tree("explore")
 def create_explore_tree() -> py_trees.behaviour.Behaviour:
-    """Exploration tree: Look around, move forward, repeat."""
-    return Sequence(
+    """Exploration tree with person detection interrupt."""
+    return Selector(
         name="explore",
-        memory=True,
+        memory=False,
         children=[
-            SetExpressionAction("curious"),
-            ScanAction("partial"),
-            MoveAction("forward", speed=0.4, duration=2.0),
-            TurnAction(angle=45.0, speed=0.3),
-            MoveAction("forward", speed=0.4, duration=1.5),
+            # Branch 1: Person detected - express happiness and stop
+            Sequence(
+                name="explore_person_detected",
+                memory=True,
+                children=[
+                    PersonDetectedCondition(familiar_only=False, max_distance=150.0),
+                    SetExpressionAction("happy"),
+                    PlaySoundAction("greeting"),
+                    StopAction(),
+                ],
+            ),
+            # Branch 2: Normal exploration
+            Sequence(
+                name="explore_default",
+                memory=True,
+                children=[
+                    SetExpressionAction("curious"),
+                    ScanAction("partial"),
+                    MoveAction("forward", speed=0.4, duration=2.0),
+                    TurnAction(angle=45.0, speed=0.3),
+                    MoveAction("forward", speed=0.4, duration=1.5),
+                ],
+            ),
         ],
     )
 
@@ -133,16 +152,35 @@ def create_observe_tree() -> py_trees.behaviour.Behaviour:
 
 @BehaviorTreeFactory.register_tree("wander")
 def create_wander_tree() -> py_trees.behaviour.Behaviour:
-    """Wander tree: Move randomly in short bursts."""
-    return Sequence(
+    """Wander tree with edge safety check."""
+    return Selector(
         name="wander",
-        memory=True,
+        memory=False,
         children=[
-            SetExpressionAction("neutral"),
-            MoveAction("forward", speed=0.3, duration=1.0),
-            TurnAction(angle=90.0, speed=0.4),
-            MoveAction("forward", speed=0.3, duration=1.0),
-            TurnAction(angle=-45.0, speed=0.4),
+            # Branch 1: Near edge - stop and turn away
+            Sequence(
+                name="wander_edge_detected",
+                memory=True,
+                children=[
+                    TriggerActiveCondition("near_edge"),
+                    SetExpressionAction("alert"),
+                    StopAction(),
+                    MoveAction("backward", speed=0.3, duration=0.5),
+                    TurnAction(angle=180.0, speed=0.4),
+                ],
+            ),
+            # Branch 2: Normal wandering
+            Sequence(
+                name="wander_default",
+                memory=True,
+                children=[
+                    SetExpressionAction("neutral"),
+                    MoveAction("forward", speed=0.3, duration=1.0),
+                    TurnAction(angle=90.0, speed=0.4),
+                    MoveAction("forward", speed=0.3, duration=1.0),
+                    TurnAction(angle=-45.0, speed=0.4),
+                ],
+            ),
         ],
     )
 
@@ -485,5 +523,95 @@ def create_idle_tree() -> py_trees.behaviour.Behaviour:
         children=[
             SetExpressionAction("neutral"),
             WaitAction(3.0),
+        ],
+    )
+
+
+# --- LONELINESS BEHAVIORS ---
+
+@BehaviorTreeFactory.register_tree("sigh")
+def create_sigh_tree() -> py_trees.behaviour.Behaviour:
+    """Sigh tree: Express loneliness with a sad sound and expression."""
+    return Sequence(
+        name="sigh",
+        memory=True,
+        children=[
+            SetExpressionAction("sad"),
+            PlaySoundAction("sigh"),
+            WaitAction(2.0),
+            SetExpressionAction("neutral"),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("mope")
+def create_mope_tree() -> py_trees.behaviour.Behaviour:
+    """Mope tree: Slow, sad movement expressing loneliness."""
+    return Sequence(
+        name="mope",
+        memory=True,
+        children=[
+            SetExpressionAction("sad"),
+            MoveAction("forward", speed=0.15, duration=1.5),
+            WaitAction(1.0),
+            TurnAction(angle=30.0, speed=0.2),
+            WaitAction(1.5),
+            MoveAction("forward", speed=0.1, duration=1.0),
+            PlaySoundAction("sad"),
+            WaitAction(2.0),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("perk_up_hopeful")
+def create_perk_up_hopeful_tree() -> py_trees.behaviour.Behaviour:
+    """Perk up hopeful tree: Quick look around hoping to find someone."""
+    return Sequence(
+        name="perk_up_hopeful",
+        memory=True,
+        children=[
+            SetExpressionAction("alert"),
+            ScanAction("quick"),
+            SetExpressionAction("curious"),
+            PlaySoundAction("curious"),
+            WaitAction(2.0),
+            SetExpressionAction("sad"),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("seek_company")
+def create_seek_company_tree() -> py_trees.behaviour.Behaviour:
+    """Seek company tree with person detection success."""
+    return Selector(
+        name="seek_company",
+        memory=False,
+        children=[
+            # Branch 1: Found someone! Express joy
+            Sequence(
+                name="seek_company_found",
+                memory=True,
+                children=[
+                    PersonDetectedCondition(familiar_only=False),
+                    SetExpressionAction("happy"),
+                    PlaySoundAction("happy"),
+                    MoveAction("forward", speed=0.3, duration=1.0),
+                ],
+            ),
+            # Branch 2: Keep searching
+            Sequence(
+                name="seek_company_searching",
+                memory=True,
+                children=[
+                    SetExpressionAction("curious"),
+                    PlaySoundAction("curious"),
+                    ScanAction("partial"),
+                    MoveAction("forward", speed=0.3, duration=2.0),
+                    TurnAction(angle=90.0, speed=0.4),
+                    ScanAction("quick"),
+                    MoveAction("forward", speed=0.3, duration=2.0),
+                    SetExpressionAction("sad"),
+                ],
+            ),
         ],
     )

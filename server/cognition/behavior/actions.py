@@ -147,6 +147,7 @@ class PlaySoundAction(ActionNode):
         "playful": 0.7,
         "affection": 0.8,
         "alert": 0.3,
+        "sigh": 1.5,
     }
     DEFAULT_DURATION = 0.5
 
