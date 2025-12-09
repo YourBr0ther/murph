@@ -27,6 +27,10 @@ from .types import (
     LocalTrigger,
     PiStatus,
     RobotMessage,
+    # WebRTC signaling messages
+    WebRTCOffer,
+    WebRTCAnswer,
+    WebRTCIceCandidate,
     # Factory helpers
     create_command_ack,
     create_expression_command,
@@ -37,6 +41,9 @@ from .types import (
     create_sound_command,
     create_stop_command,
     create_turn_command,
+    create_webrtc_offer,
+    create_webrtc_answer,
+    create_webrtc_ice_candidate,
 )
 
 __all__ = [
@@ -63,6 +70,10 @@ __all__ = [
     "LocalTrigger",
     "PiStatus",
     "RobotMessage",
+    # WebRTC signaling messages
+    "WebRTCOffer",
+    "WebRTCAnswer",
+    "WebRTCIceCandidate",
     # Factory helpers
     "create_command_ack",
     "create_expression_command",
@@ -73,4 +84,7 @@ __all__ = [
     "create_sound_command",
     "create_stop_command",
     "create_turn_command",
+    "create_webrtc_offer",
+    "create_webrtc_answer",
+    "create_webrtc_ice_candidate",
 ]

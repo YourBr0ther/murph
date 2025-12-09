@@ -26,6 +26,8 @@ from shared.messages import (
     MessageType,
     RobotMessage,
     SensorData,
+    WebRTCOffer,
+    WebRTCIceCandidate,
     create_command_ack,
     create_heartbeat,
 )
@@ -51,6 +53,8 @@ class PiConnectionManager:
         on_sensor_data: Callable[[SensorData], None] | None = None,
         on_local_trigger: Callable[[LocalTrigger], None] | None = None,
         on_connection_change: Callable[[bool], None] | None = None,
+        on_webrtc_offer: Callable[[WebRTCOffer], Any] | None = None,
+        on_webrtc_ice_candidate: Callable[[WebRTCIceCandidate], Any] | None = None,
     ) -> None:
         """
         Initialize the connection manager.
@@ -61,12 +65,16 @@ class PiConnectionManager:
             on_sensor_data: Callback for incoming sensor data
             on_local_trigger: Callback for local trigger events
             on_connection_change: Callback when connection state changes
+            on_webrtc_offer: Callback for WebRTC SDP offer from Pi
+            on_webrtc_ice_candidate: Callback for WebRTC ICE candidates from Pi
         """
         self._host = host
         self._port = port
         self._on_sensor_data = on_sensor_data
         self._on_local_trigger = on_local_trigger
         self._on_connection_change = on_connection_change
+        self._on_webrtc_offer = on_webrtc_offer
+        self._on_webrtc_ice_candidate = on_webrtc_ice_candidate
 
         self._server = None
         self._connection: WebSocketServerProtocol | None = None
@@ -184,6 +192,14 @@ class PiConnectionManager:
             elif msg.message_type == MessageType.HEARTBEAT:
                 self._last_heartbeat = time.time()
 
+            elif msg.message_type == MessageType.WEBRTC_OFFER:
+                if isinstance(msg.payload, WebRTCOffer) and self._on_webrtc_offer:
+                    self._on_webrtc_offer(msg.payload)
+
+            elif msg.message_type == MessageType.WEBRTC_ICE_CANDIDATE:
+                if isinstance(msg.payload, WebRTCIceCandidate) and self._on_webrtc_ice_candidate:
+                    self._on_webrtc_ice_candidate(msg.payload)
+
         except Exception as e:
             logger.error(f"Failed to parse message: {e}")
 
@@ -281,3 +297,24 @@ class PiConnectionManager:
             "pending_commands": len(self._pending_acks),
             "last_heartbeat": self._last_heartbeat,
         }
+
+    async def send_message(self, msg: RobotMessage) -> bool:
+        """
+        Send a RobotMessage to Pi (for WebRTC signaling).
+
+        Args:
+            msg: RobotMessage to send
+
+        Returns:
+            True if sent successfully
+        """
+        if not self._connection:
+            logger.warning("Cannot send message - Pi not connected")
+            return False
+
+        try:
+            await self._connection.send(msg.serialize())
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to send message: {e}")
+            return False

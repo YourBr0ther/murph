@@ -16,8 +16,17 @@ from shared.constants import (
     DEFAULT_SERVER_HOST,
     DEFAULT_SERVER_PORT,
     PERCEPTION_CYCLE_MS,
+    VISION_FRAME_STALE_MS,
 )
-from shared.messages import LocalTrigger, SensorData
+from shared.messages import (
+    LocalTrigger,
+    MessageType,
+    RobotMessage,
+    SensorData,
+    WebRTCAnswer,
+    WebRTCIceCandidate,
+    WebRTCOffer,
+)
 
 from .cognition.behavior.context import WorldContext
 from .cognition.behavior.evaluator import BehaviorEvaluator
@@ -26,6 +35,7 @@ from .cognition.needs import NeedsSystem
 from .communication.action_dispatcher import ActionDispatcher
 from .communication.websocket_server import PiConnectionManager
 from .perception.sensor_processor import SensorProcessor
+from .video import FrameBuffer, VideoReceiver, VisionProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -72,17 +82,27 @@ class CognitionOrchestrator:
         # Sensor processing (perception)
         self._sensor_processor = SensorProcessor()
 
-        # WebSocket connection (with callbacks)
+        # WebSocket connection (with callbacks including WebRTC signaling)
         self._connection = PiConnectionManager(
             host=host,
             port=port,
             on_sensor_data=self._on_sensor_data,
             on_local_trigger=self._on_local_trigger,
             on_connection_change=self._on_connection_change,
+            on_webrtc_offer=self._on_webrtc_offer,
+            on_webrtc_ice_candidate=self._on_webrtc_ice_candidate,
         )
 
         # Action dispatch (bridges executor to Pi)
         self._action_dispatcher = ActionDispatcher(self._connection)
+
+        # Video streaming and vision processing
+        self._frame_buffer = FrameBuffer()
+        self._video_receiver = VideoReceiver(
+            on_frame=self._frame_buffer.put,
+            on_signaling=self._send_webrtc_signaling,
+        )
+        self._vision_processor = VisionProcessor()
 
         # Needs system (cognition)
         self._needs_system = NeedsSystem()
@@ -124,6 +144,10 @@ class CognitionOrchestrator:
         await self._connection.start()
         logger.info(f"WebSocket server started on ws://{self._host}:{self._port}")
 
+        # Start video receiver (waits for WebRTC offer from Pi)
+        await self._video_receiver.start()
+        logger.info("Video receiver started")
+
         # Start the three loops concurrently
         self._tasks = [
             asyncio.create_task(self._perception_loop(), name="perception"),
@@ -157,6 +181,9 @@ class CognitionOrchestrator:
 
         self._tasks.clear()
 
+        # Stop video receiver
+        await self._video_receiver.stop()
+
         # Stop WebSocket server
         await self._connection.stop()
 
@@ -166,9 +193,10 @@ class CognitionOrchestrator:
         """
         Perception loop - runs at 10Hz (100ms cycle).
 
-        Updates WorldContext from sensor data.
+        Updates WorldContext from sensor data and vision.
         """
         cycle_time = PERCEPTION_CYCLE_MS / 1000.0
+        stale_threshold = VISION_FRAME_STALE_MS / 1000.0
 
         logger.info(f"Perception loop started ({PERCEPTION_CYCLE_MS}ms cycle)")
 
@@ -178,6 +206,18 @@ class CognitionOrchestrator:
             try:
                 # Update world context from sensor state
                 self._sensor_processor.update_world_context(self._world_context)
+
+                # Process vision if frame available
+                frame, frame_time = self._frame_buffer.get_latest()
+                if frame is not None and (time.time() - frame_time) < stale_threshold:
+                    vision_result = await self._vision_processor.process_if_available(frame)
+                    if vision_result:
+                        self._vision_processor.update_world_context(
+                            self._world_context, vision_result
+                        )
+                else:
+                    # Clear vision state if no fresh frame
+                    self._vision_processor.update_world_context(self._world_context, None)
 
                 # Update executor's context for condition nodes
                 self._executor.update_context(self._world_context)
@@ -365,8 +405,50 @@ class CognitionOrchestrator:
             # Reset world context since sensor data is now stale
             self._world_context = WorldContext()
             self._sensor_processor = SensorProcessor()
+
+            # Clear frame buffer
+            self._frame_buffer.clear()
         else:
             logger.info("Pi connected - resuming normal operation")
+
+    def _on_webrtc_offer(self, offer: WebRTCOffer) -> None:
+        """
+        Handle WebRTC SDP offer from Pi.
+
+        Args:
+            offer: WebRTC offer containing SDP
+        """
+        asyncio.create_task(self._handle_webrtc_offer(offer))
+
+    async def _handle_webrtc_offer(self, offer: WebRTCOffer) -> None:
+        """Process WebRTC offer and send answer."""
+        logger.info("Processing WebRTC offer from Pi")
+        answer_sdp = await self._video_receiver.handle_offer(offer.sdp)
+        if answer_sdp:
+            answer_msg = RobotMessage(
+                message_type=MessageType.WEBRTC_ANSWER,
+                payload=WebRTCAnswer(sdp=answer_sdp),
+            )
+            await self._connection.send_message(answer_msg)
+            logger.info("Sent WebRTC answer to Pi")
+
+    def _on_webrtc_ice_candidate(self, candidate: WebRTCIceCandidate) -> None:
+        """
+        Handle WebRTC ICE candidate from Pi.
+
+        Args:
+            candidate: ICE candidate data
+        """
+        asyncio.create_task(self._video_receiver.add_ice_candidate(candidate))
+
+    async def _send_webrtc_signaling(self, msg: RobotMessage) -> None:
+        """
+        Send WebRTC signaling message to Pi.
+
+        Args:
+            msg: RobotMessage containing WebRTC signaling payload
+        """
+        await self._connection.send_message(msg)
 
     def get_status(self) -> dict[str, Any]:
         """Get orchestrator status for debugging."""

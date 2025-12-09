@@ -47,6 +47,9 @@ class MessageType(IntEnum):
     LOCAL_TRIGGER = 21
     HEARTBEAT = 30
     PI_STATUS = 31
+    WEBRTC_OFFER = 40
+    WEBRTC_ANSWER = 41
+    WEBRTC_ICE_CANDIDATE = 42
 
 
 # =============================================================================
@@ -464,11 +467,92 @@ class PiStatus:
 
 
 # =============================================================================
+# WEBRTC SIGNALING MESSAGES
+# =============================================================================
+
+
+@dataclass
+class WebRTCOffer:
+    """WebRTC SDP offer (Pi -> Server)."""
+
+    sdp: str = ""
+    type: str = "offer"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "sdp": self.sdp,
+            "type": self.type,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> WebRTCOffer:
+        return cls(
+            sdp=data.get("sdp", ""),
+            type=data.get("type", "offer"),
+        )
+
+
+@dataclass
+class WebRTCAnswer:
+    """WebRTC SDP answer (Server -> Pi)."""
+
+    sdp: str = ""
+    type: str = "answer"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "sdp": self.sdp,
+            "type": self.type,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> WebRTCAnswer:
+        return cls(
+            sdp=data.get("sdp", ""),
+            type=data.get("type", "answer"),
+        )
+
+
+@dataclass
+class WebRTCIceCandidate:
+    """WebRTC ICE candidate (bidirectional)."""
+
+    candidate: str = ""
+    sdp_mid: str | None = None
+    sdp_mline_index: int | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "candidate": self.candidate,
+            "sdp_mid": self.sdp_mid,
+            "sdp_mline_index": self.sdp_mline_index,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> WebRTCIceCandidate:
+        return cls(
+            candidate=data.get("candidate", ""),
+            sdp_mid=data.get("sdp_mid"),
+            sdp_mline_index=data.get("sdp_mline_index"),
+        )
+
+
+# =============================================================================
 # TOP-LEVEL MESSAGE ENVELOPE
 # =============================================================================
 
 # Union type for all message payloads
-RobotMessagePayload = Command | CommandAck | SensorData | LocalTrigger | Heartbeat | PiStatus
+RobotMessagePayload = (
+    Command
+    | CommandAck
+    | SensorData
+    | LocalTrigger
+    | Heartbeat
+    | PiStatus
+    | WebRTCOffer
+    | WebRTCAnswer
+    | WebRTCIceCandidate
+)
 
 
 @dataclass
@@ -514,6 +598,12 @@ class RobotMessage:
             payload = Heartbeat.from_dict(payload_data)
         elif msg_type == MessageType.PI_STATUS:
             payload = PiStatus.from_dict(payload_data)
+        elif msg_type == MessageType.WEBRTC_OFFER:
+            payload = WebRTCOffer.from_dict(payload_data)
+        elif msg_type == MessageType.WEBRTC_ANSWER:
+            payload = WebRTCAnswer.from_dict(payload_data)
+        elif msg_type == MessageType.WEBRTC_ICE_CANDIDATE:
+            payload = WebRTCIceCandidate.from_dict(payload_data)
 
         return cls(
             timestamp_ms=data.get("timestamp_ms", 0),
@@ -651,4 +741,36 @@ def create_heartbeat(sequence: int = 0) -> RobotMessage:
     return RobotMessage(
         message_type=MessageType.HEARTBEAT,
         payload=Heartbeat(sequence=sequence),
+    )
+
+
+def create_webrtc_offer(sdp: str) -> RobotMessage:
+    """Create a WebRTC offer message."""
+    return RobotMessage(
+        message_type=MessageType.WEBRTC_OFFER,
+        payload=WebRTCOffer(sdp=sdp),
+    )
+
+
+def create_webrtc_answer(sdp: str) -> RobotMessage:
+    """Create a WebRTC answer message."""
+    return RobotMessage(
+        message_type=MessageType.WEBRTC_ANSWER,
+        payload=WebRTCAnswer(sdp=sdp),
+    )
+
+
+def create_webrtc_ice_candidate(
+    candidate: str,
+    sdp_mid: str | None = None,
+    sdp_mline_index: int | None = None,
+) -> RobotMessage:
+    """Create a WebRTC ICE candidate message."""
+    return RobotMessage(
+        message_type=MessageType.WEBRTC_ICE_CANDIDATE,
+        payload=WebRTCIceCandidate(
+            candidate=candidate,
+            sdp_mid=sdp_mid,
+            sdp_mline_index=sdp_mline_index,
+        ),
     )

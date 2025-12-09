@@ -44,3 +44,15 @@ FACE_MATCH_THRESHOLD = 0.6  # Cosine similarity threshold for matches
 FACE_QUALITY_THRESHOLD = 0.5  # Minimum quality to save embeddings
 FACE_CONFIRMATION_FRAMES = 3  # Consecutive matches needed for identity confirmation
 FACE_TRACK_TIMEOUT_FRAMES = 10  # Frames without detection before dropping track
+
+# Video Streaming
+VIDEO_WIDTH = 640
+VIDEO_HEIGHT = 480
+VIDEO_FPS = 10
+VIDEO_BITRATE_KBPS = 1500
+VIDEO_CODEC = "h264"
+
+# Vision Processing
+VISION_RESULT_TTL_MS = 500  # How long vision results are valid
+VISION_FRAME_STALE_MS = 2000  # Consider frame stale after this time
+VISION_FACE_DISTANCE_CALIBRATION_PX = 160  # Face height pixels at 50cm distance

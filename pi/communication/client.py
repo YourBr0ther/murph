@@ -31,6 +31,8 @@ from shared.messages import (
     RobotMessage,
     SensorData,
     LocalTrigger,
+    WebRTCAnswer,
+    WebRTCIceCandidate,
     create_command_ack,
     create_sensor_data,
     create_local_trigger,
@@ -57,6 +59,8 @@ class ServerConnection:
         port: int = DEFAULT_SERVER_PORT,
         on_command: Callable[[Command], None] | None = None,
         on_connection_change: Callable[[bool], None] | None = None,
+        on_webrtc_answer: Callable[[WebRTCAnswer], Any] | None = None,
+        on_webrtc_ice_candidate: Callable[[WebRTCIceCandidate], Any] | None = None,
     ) -> None:
         """
         Initialize the server connection.
@@ -66,11 +70,15 @@ class ServerConnection:
             port: Server port
             on_command: Callback for received commands
             on_connection_change: Callback when connection state changes
+            on_webrtc_answer: Callback for WebRTC SDP answer from server
+            on_webrtc_ice_candidate: Callback for WebRTC ICE candidates from server
         """
         self._host = host
         self._port = port
         self._on_command = on_command
         self._on_connection_change = on_connection_change
+        self._on_webrtc_answer = on_webrtc_answer
+        self._on_webrtc_ice_candidate = on_webrtc_ice_candidate
 
         self._websocket: WebSocketClientProtocol | None = None
         self._running = False
@@ -189,6 +197,14 @@ class ServerConnection:
                 # Echo heartbeat back
                 await self._send_heartbeat()
 
+            elif msg.message_type == MessageType.WEBRTC_ANSWER:
+                if isinstance(msg.payload, WebRTCAnswer) and self._on_webrtc_answer:
+                    self._on_webrtc_answer(msg.payload)
+
+            elif msg.message_type == MessageType.WEBRTC_ICE_CANDIDATE:
+                if isinstance(msg.payload, WebRTCIceCandidate) and self._on_webrtc_ice_candidate:
+                    self._on_webrtc_ice_candidate(msg.payload)
+
         except Exception as e:
             logger.error(f"Failed to parse message: {e}")
 
@@ -260,6 +276,22 @@ class ServerConnection:
             logger.debug(f"Sent local trigger: {trigger_name}")
         except Exception as e:
             logger.warning(f"Failed to send local trigger: {e}")
+
+    async def send_message(self, msg: RobotMessage) -> None:
+        """
+        Send a RobotMessage directly (for WebRTC signaling).
+
+        Args:
+            msg: RobotMessage to send
+        """
+        if not self._websocket:
+            logger.warning("Cannot send message - not connected")
+            return
+
+        try:
+            await self._websocket.send(msg.serialize())
+        except Exception as e:
+            logger.warning(f"Failed to send message: {e}")
 
     def get_status(self) -> dict[str, Any]:
         """Get connection status."""

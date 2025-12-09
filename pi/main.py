@@ -17,7 +17,10 @@ from shared.constants import (
     DEFAULT_SERVER_PORT,
     PERCEPTION_CYCLE_MS,
 )
-from shared.messages import Command, SensorData
+from shared.messages import Command, RobotMessage, SensorData, WebRTCAnswer, WebRTCIceCandidate
+
+# Import video components
+from pi.video import CameraManager, MockCameraManager, VideoStreamer
 
 # Import actuators (mock by default, real hardware if on Pi)
 from pi.actuators import (
@@ -83,6 +86,10 @@ class PiClient:
         self._imu = None
         self._touch = None
 
+        # Video streaming
+        self._camera: CameraManager | MockCameraManager | None = None
+        self._video_streamer: VideoStreamer | None = None
+
         # Communication
         self._connection: ServerConnection | None = None
         self._command_handler: CommandHandler | None = None
@@ -97,6 +104,9 @@ class PiClient:
         # Initialize hardware
         await self._init_hardware()
 
+        # Initialize video
+        await self._init_video()
+
         # Setup command handler
         self._command_handler = CommandHandler(
             motors=self._motors,
@@ -104,12 +114,14 @@ class PiClient:
             speaker=self._speaker,
         )
 
-        # Setup server connection
+        # Setup server connection with WebRTC callbacks
         self._connection = ServerConnection(
             host=self._server_host,
             port=self._server_port,
             on_command=self._on_command,
             on_connection_change=self._on_connection_change,
+            on_webrtc_answer=self._on_webrtc_answer,
+            on_webrtc_ice_candidate=self._on_webrtc_ice_candidate,
         )
 
         self._running = True
@@ -124,6 +136,9 @@ class PiClient:
         """Stop the Pi client."""
         logger.info("Stopping Murph Pi client...")
         self._running = False
+
+        # Stop video streaming
+        await self._shutdown_video()
 
         # Stop sensor streaming
         if self._sensor_task and not self._sensor_task.done():
@@ -258,6 +273,54 @@ class PiClient:
         if self._touch:
             await self._touch.shutdown()
 
+    async def _init_video(self) -> None:
+        """Initialize camera and video streaming."""
+        logger.info("Initializing video...")
+
+        # Initialize camera (real or mock)
+        if self._use_real_hardware:
+            self._camera = CameraManager()
+            if not await self._camera.initialize():
+                logger.warning("Real camera failed, using mock")
+                self._camera = MockCameraManager()
+                await self._camera.initialize()
+        else:
+            self._camera = MockCameraManager()
+            await self._camera.initialize()
+
+        # Create video streamer (will start when connected)
+        self._video_streamer = VideoStreamer(
+            camera=self._camera,
+            on_signaling=self._send_webrtc_signaling,
+        )
+
+        logger.info("Video initialized")
+
+    async def _shutdown_video(self) -> None:
+        """Shutdown video streaming."""
+        if self._video_streamer:
+            await self._video_streamer.stop()
+            self._video_streamer = None
+
+        if self._camera:
+            await self._camera.shutdown()
+            self._camera = None
+
+    async def _send_webrtc_signaling(self, msg: RobotMessage) -> None:
+        """Send WebRTC signaling message to server via WebSocket."""
+        if self._connection and self._connection.is_connected:
+            await self._connection.send_message(msg)
+
+    def _on_webrtc_answer(self, answer: WebRTCAnswer) -> None:
+        """Handle WebRTC answer from server."""
+        if self._video_streamer:
+            asyncio.create_task(self._video_streamer.handle_answer(answer.sdp))
+
+    def _on_webrtc_ice_candidate(self, candidate: WebRTCIceCandidate) -> None:
+        """Handle WebRTC ICE candidate from server."""
+        if self._video_streamer:
+            asyncio.create_task(self._video_streamer.add_ice_candidate(candidate))
+
     def _on_command(self, command: Command) -> None:
         """Handle incoming command from server."""
         if self._command_handler:
@@ -270,11 +333,17 @@ class PiClient:
             # Show happy expression on connect
             if self._display:
                 asyncio.create_task(self._display.set_expression("happy"))
+            # Start video streaming
+            if self._video_streamer:
+                asyncio.create_task(self._video_streamer.start())
         else:
             logger.warning("Disconnected from server brain")
             # Show sad expression on disconnect
             if self._display:
                 asyncio.create_task(self._display.set_expression("sad"))
+            # Stop video streaming
+            if self._video_streamer:
+                asyncio.create_task(self._video_streamer.stop())
 
     async def _sensor_loop(self) -> None:
         """Stream sensor data to server."""
