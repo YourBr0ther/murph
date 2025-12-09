@@ -3,6 +3,7 @@ Murph - Emulator
 Web-based robot simulator for testing without hardware.
 """
 
+from .config import EmulatorConfig
 from .virtual_pi import VirtualPi, VirtualRobotState
 
 # Optional import of FastAPI app (requires fastapi to be installed)
@@ -21,6 +22,7 @@ except ImportError:
 
 __all__ = [
     "create_app",
+    "EmulatorConfig",
     "VirtualPi",
     "VirtualRobotState",
     "EmulatorVideoStreamer",

@@ -19,6 +19,7 @@
 - [x] LLM integration (NanoGPT + Ollama) - 2024-12-09
 - [x] Web emulator enhancement (protocol compliance + UI) - 2024-12-09
 - [x] Emulator webcam video streaming (WebRTC + OpenCV) - 2024-12-09
+- [x] Emulator gap completion (physics, encoders, config, microphone) - 2024-12-09
 
 ## In Progress
 - [ ] None (ready for next feature)
