@@ -44,6 +44,7 @@ from shared.messages import (
 )
 
 if TYPE_CHECKING:
+    from .audio import BaseMicrophoneCapture
     from .config import EmulatorConfig
     from .video import EmulatorVideoStreamer, MockWebcamCamera, WebcamCamera
 
@@ -275,6 +276,12 @@ class VirtualRobotState:
     video_connected: bool = False
     webcam_available: bool = False
 
+    # Audio capture state
+    audio_enabled: bool = False
+    audio_running: bool = False
+    audio_level: float = 0.0
+    is_voice_detected: bool = False
+
     def to_dict(self) -> dict[str, Any]:
         """Convert state to dictionary for JSON serialization."""
         return {
@@ -307,6 +314,10 @@ class VirtualRobotState:
             "video_streaming": self.video_streaming,
             "video_connected": self.video_connected,
             "webcam_available": self.webcam_available,
+            "audio_enabled": self.audio_enabled,
+            "audio_running": self.audio_running,
+            "audio_level": self.audio_level,
+            "is_voice_detected": self.is_voice_detected,
         }
 
 
@@ -384,6 +395,11 @@ class VirtualPi:
         self._video_streamer: EmulatorVideoStreamer | None = None
         self._state.video_enabled = video_enabled
 
+        # Audio capture
+        self._microphone: BaseMicrophoneCapture | None = None
+        self._audio_enabled = self._config.audio_enabled
+        self._state.audio_enabled = self._audio_enabled
+
     @property
     def state(self) -> VirtualRobotState:
         """Get current robot state."""
@@ -402,6 +418,13 @@ class VirtualPi:
         if self._video_enabled:
             await self._init_video()
 
+        # Initialize audio if enabled
+        if self._audio_enabled:
+            await self._init_audio()
+            if self._microphone:
+                await self._microphone.start()
+                self._state.audio_running = True
+
         asyncio.create_task(self._connect_to_server())
         self._sensor_task = asyncio.create_task(self._sensor_loop())
         self._physics_task = asyncio.create_task(self._physics_loop())
@@ -410,6 +433,9 @@ class VirtualPi:
     async def stop(self) -> None:
         """Stop virtual Pi."""
         self._running = False
+
+        # Shutdown audio capture
+        await self._shutdown_audio()
 
         # Shutdown video streaming
         await self._shutdown_video()
@@ -466,6 +492,26 @@ class VirtualPi:
             self._camera = None
 
         logger.info("Video streaming shutdown")
+
+    async def _init_audio(self) -> None:
+        """Initialize microphone capture."""
+        from .audio import MicrophoneCapture
+
+        logger.info("Initializing audio capture...")
+        self._microphone = MicrophoneCapture()
+
+        if self._microphone.is_available:
+            logger.info("Real microphone available")
+        else:
+            logger.info("Using mock microphone (no hardware available)")
+
+    async def _shutdown_audio(self) -> None:
+        """Shutdown audio capture."""
+        if self._microphone:
+            await self._microphone.stop()
+            self._microphone = None
+            self._state.audio_running = False
+        logger.info("Audio capture shutdown")
 
     async def _send_webrtc_signaling(self, msg: RobotMessage) -> None:
         """Send WebRTC signaling message via WebSocket."""
@@ -738,6 +784,11 @@ class VirtualPi:
                 # Generate and send touch data
                 touch_data = self._generate_touch_data()
                 await self._send_sensor(SensorData(payload=touch_data))
+
+                # Update audio state from microphone
+                if self._microphone and self._state.audio_running:
+                    self._state.audio_level = self._microphone.get_audio_level()
+                    self._state.is_voice_detected = self._microphone.is_voice_detected()
 
                 # Send PI_STATUS every 5 seconds (50 iterations at 100ms)
                 self._status_counter = (self._status_counter + 1) % 50
