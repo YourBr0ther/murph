@@ -5,7 +5,6 @@ let reconnectTimer = null;
 
 // DOM Elements
 const elements = {
-    connection: document.getElementById('connection'),
     robot: document.getElementById('robot'),
     position: document.getElementById('position'),
     heading: document.getElementById('heading'),
@@ -13,7 +12,95 @@ const elements = {
     sound: document.getElementById('sound'),
     moving: document.getElementById('moving'),
     state: document.getElementById('state'),
+    // Connection status
+    uiDot: document.getElementById('uiDot'),
+    uiStatus: document.getElementById('uiStatus'),
+    serverDot: document.getElementById('serverDot'),
+    serverStatus: document.getElementById('serverStatus'),
+    // Motor display
+    leftWheelBar: document.getElementById('leftWheelBar'),
+    rightWheelBar: document.getElementById('rightWheelBar'),
+    leftSpeed: document.getElementById('leftSpeed'),
+    rightSpeed: document.getElementById('rightSpeed'),
+    motorDirection: document.getElementById('motorDirection'),
+    // Sensor display
+    imuGraph: document.getElementById('imuGraph'),
+    accelX: document.getElementById('accelX'),
+    accelY: document.getElementById('accelY'),
+    accelZ: document.getElementById('accelZ'),
+    touchElectrodes: document.getElementById('touchElectrodes'),
 };
+
+// IMU Graph class for rolling sensor visualization
+class SensorGraph {
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.maxPoints = 100;
+        this.data = { x: [], y: [], z: [] };
+    }
+
+    addPoint(x, y, z) {
+        this.data.x.push(x);
+        this.data.y.push(y);
+        this.data.z.push(z);
+
+        while (this.data.x.length > this.maxPoints) {
+            this.data.x.shift();
+            this.data.y.shift();
+            this.data.z.shift();
+        }
+        this.render();
+    }
+
+    render() {
+        const { ctx, canvas } = this;
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // Clear background
+        ctx.fillStyle = '#0d1117';
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw center line (0g)
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, height / 2);
+        ctx.lineTo(width, height / 2);
+        ctx.stroke();
+
+        // Draw each axis
+        this.drawLine(this.data.x, '#ff6b6b'); // Red for X
+        this.drawLine(this.data.y, '#4ecdc4'); // Teal for Y
+        this.drawLine(this.data.z, '#45b7d1'); // Blue for Z
+    }
+
+    drawLine(data, color) {
+        if (data.length < 2) return;
+
+        const { ctx, canvas, maxPoints } = this;
+        const width = canvas.width;
+        const height = canvas.height;
+        const scale = height / 6; // -3g to +3g range
+
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+
+        data.forEach((val, i) => {
+            const x = (i / maxPoints) * width;
+            const y = height / 2 - (val * scale);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+
+        ctx.stroke();
+    }
+}
+
+// Initialize IMU graph
+let imuGraph = null;
 
 // WebSocket Connection
 function connect() {
@@ -22,8 +109,8 @@ function connect() {
 
     ws.onopen = () => {
         console.log('Connected to emulator');
-        elements.connection.textContent = 'Connected';
-        elements.connection.className = 'status connected';
+        elements.uiDot.className = 'dot connected';
+        elements.uiStatus.textContent = 'Connected';
 
         if (reconnectTimer) {
             clearTimeout(reconnectTimer);
@@ -33,8 +120,10 @@ function connect() {
 
     ws.onclose = () => {
         console.log('Disconnected from emulator');
-        elements.connection.textContent = 'Disconnected';
-        elements.connection.className = 'status disconnected';
+        elements.uiDot.className = 'dot disconnected';
+        elements.uiStatus.textContent = 'Disconnected';
+        elements.serverDot.className = 'dot disconnected';
+        elements.serverStatus.textContent = 'Unknown';
 
         // Reconnect after delay
         reconnectTimer = setTimeout(connect, 2000);
@@ -68,8 +157,82 @@ function updateUI(state) {
     // Update robot visual
     updateRobotVisual(state);
 
+    // Update connection status
+    updateConnectionStatus(state);
+
+    // Update motor display
+    updateMotorDisplay(state);
+
+    // Update sensor display
+    updateSensorDisplay(state);
+
     // Update raw state
     elements.state.textContent = JSON.stringify(state, null, 2);
+}
+
+// Update sensor data display
+function updateSensorDisplay(state) {
+    // Update IMU values
+    const x = state.imu_accel_x || 0;
+    const y = state.imu_accel_y || 0;
+    const z = state.imu_accel_z || -1;
+
+    elements.accelX.textContent = `X: ${x.toFixed(2)}`;
+    elements.accelY.textContent = `Y: ${y.toFixed(2)}`;
+    elements.accelZ.textContent = `Z: ${z.toFixed(2)}`;
+
+    // Update IMU graph
+    if (imuGraph) {
+        imuGraph.addPoint(x, y, z);
+    }
+
+    // Update touch electrodes
+    const electrodes = state.touched_electrodes || [];
+    if (electrodes.length > 0) {
+        elements.touchElectrodes.textContent = electrodes.join(', ');
+    } else {
+        elements.touchElectrodes.textContent = 'None';
+    }
+}
+
+// Update server connection status
+function updateConnectionStatus(state) {
+    if (state.server_connected) {
+        elements.serverDot.className = 'dot connected';
+        elements.serverStatus.textContent = 'Connected';
+    } else {
+        elements.serverDot.className = 'dot disconnected';
+        elements.serverStatus.textContent = 'Disconnected';
+    }
+}
+
+// Update motor visualization
+function updateMotorDisplay(state) {
+    const leftSpeed = state.left_speed || 0;
+    const rightSpeed = state.right_speed || 0;
+
+    // Left wheel
+    const leftHeight = Math.abs(leftSpeed) * 50; // 50% max height
+    elements.leftWheelBar.style.height = `${leftHeight}%`;
+    if (leftSpeed < 0) {
+        elements.leftWheelBar.className = 'wheel-bar reverse';
+    } else {
+        elements.leftWheelBar.className = 'wheel-bar';
+    }
+    elements.leftSpeed.textContent = `${Math.round(leftSpeed * 100)}%`;
+
+    // Right wheel
+    const rightHeight = Math.abs(rightSpeed) * 50;
+    elements.rightWheelBar.style.height = `${rightHeight}%`;
+    if (rightSpeed < 0) {
+        elements.rightWheelBar.className = 'wheel-bar reverse';
+    } else {
+        elements.rightWheelBar.className = 'wheel-bar';
+    }
+    elements.rightSpeed.textContent = `${Math.round(rightSpeed * 100)}%`;
+
+    // Direction
+    elements.motorDirection.textContent = state.move_direction.toUpperCase();
 }
 
 function updateRobotVisual(state) {
@@ -157,5 +320,10 @@ function flashButton(btn) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    // Create IMU graph
+    if (elements.imuGraph) {
+        imuGraph = new SensorGraph(elements.imuGraph);
+    }
+    // Connect to WebSocket
     connect();
 });

@@ -10,7 +10,18 @@
     <div class="container">
         <header>
             <h1>Murph Emulator</h1>
-            <span id="connection" class="status disconnected">Disconnected</span>
+            <div class="connection-status">
+                <div class="status-item">
+                    <span class="dot" id="uiDot"></span>
+                    <span>UI:</span>
+                    <span id="uiStatus">Disconnected</span>
+                </div>
+                <div class="status-item">
+                    <span class="dot disconnected" id="serverDot"></span>
+                    <span>Server:</span>
+                    <span id="serverStatus">Disconnected</span>
+                </div>
+            </div>
         </header>
 
         <main>
@@ -76,6 +87,48 @@
                         <span class="icon">🌀</span>
                         Shake
                     </button>
+                </div>
+            </section>
+
+            <section class="motor-panel">
+                <h2>Motor State</h2>
+                <div class="motor-display">
+                    <div class="wheel-container">
+                        <span class="label">L</span>
+                        <div class="wheel">
+                            <div class="wheel-bar" id="leftWheelBar"></div>
+                            <div class="wheel-center"></div>
+                        </div>
+                        <span class="speed-label" id="leftSpeed">0%</span>
+                    </div>
+                    <div class="motor-info">
+                        <span id="motorDirection">STOP</span>
+                    </div>
+                    <div class="wheel-container">
+                        <span class="label">R</span>
+                        <div class="wheel">
+                            <div class="wheel-bar" id="rightWheelBar"></div>
+                            <div class="wheel-center"></div>
+                        </div>
+                        <span class="speed-label" id="rightSpeed">0%</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="sensor-panel">
+                <h2>Sensor Data</h2>
+                <canvas id="imuGraph" width="400" height="100"></canvas>
+                <div class="sensor-values">
+                    <div class="sensor-row">
+                        <span class="sensor-label">Accel:</span>
+                        <span class="val-x" id="accelX">X: 0.00</span>
+                        <span class="val-y" id="accelY">Y: 0.00</span>
+                        <span class="val-z" id="accelZ">Z: -1.00</span>
+                    </div>
+                    <div class="sensor-row">
+                        <span class="sensor-label">Touch:</span>
+                        <span id="touchElectrodes">None</span>
+                    </div>
                 </div>
             </section>
 

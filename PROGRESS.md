@@ -17,6 +17,7 @@
 - [x] Conditional + Loneliness behaviors - 2024-12-09
 - [x] Spatial navigation behaviors - 2024-12-09
 - [x] LLM integration (NanoGPT + Ollama) - 2024-12-09
+- [x] Web emulator enhancement (protocol compliance + UI) - 2024-12-09
 
 ## In Progress
 - [ ] None (ready for next feature)

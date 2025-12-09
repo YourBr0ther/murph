@@ -3,7 +3,7 @@
 ## Status: Ready for Next Feature
 
 ## Previous Task Completed
-LLM Integration (NanoGPT + Ollama) - 2024-12-09
+Web Emulator Enhancement - 2024-12-09
 
 ## Next Feature Options (from PROGRESS.md)
 1. Speech recognition and synthesis
@@ -11,68 +11,41 @@ LLM Integration (NanoGPT + Ollama) - 2024-12-09
 3. Dashboard/web UI for monitoring
 
 ## Notes
-LLM integration implementation is complete with:
+Emulator enhancement implementation is complete with:
 
-### Multi-Provider Architecture
-- **NanoGPT**: Cloud API provider (OpenAI-compatible)
-- **Ollama**: Local model provider (vision + text models)
-- **Mock**: Testing provider with configurable responses
+### Protocol Compliance
+- **LOCAL_TRIGGER**: Emulator sends trigger messages for pickup/bump/shake events
+- **ScanCommand**: Full scan rotation support (QUICK=90°, PARTIAL=180°, FULL=360°)
+- **PI_STATUS**: Periodic hardware status messages every 5 seconds
+- **Reflex Auto-detection**: EmulatorReflexProcessor monitors IMU for automatic triggers
 
-### Core Infrastructure
-- `LLMConfig`: Configuration with environment variable loading
-- `ResponseCache`: TTL-based LRU cache for response deduplication
-- `RateLimiter`: Token bucket rate limiting (configurable RPM)
-- `LLMService`: Main service orchestrator with lazy initialization
+### Web UI Enhancements
+- **Dual Connection Status**: Shows both UI WebSocket and Server connection state
+- **Motor Visualization**: Left/right wheel speed bars with direction indicators
+- **Expression Display**: 10 expression states with CSS animations (happy, sad, curious, surprised, sleepy, playful, love, scared, alert)
+- **Sensor Data Display**: Real-time IMU graph (X/Y/Z acceleration) and touch electrode display
 
-### Vision Integration
-- `VisionAnalyzer`: Throttled scene analysis from video frames
-- Structured JSON parsing with fallback for plain text
-- WorldContext trigger updates (llm_person_*, llm_mood_*, etc.)
-- Integration with perception loop (100ms cycle)
-
-### Behavior Reasoning Integration
-- `BehaviorReasoner`: LLM-assisted behavior selection
-- Consultation when top behaviors have similar scores
-- Context summarization for prompts
-- Integration with BehaviorEvaluator (`select_best_async`)
-
-### Files Created (17 new)
-- `server/llm/__init__.py`
-- `server/llm/types.py` - LLMMessage, LLMResponse, SceneAnalysis, BehaviorRecommendation
-- `server/llm/config.py` - LLMConfig with env loading
-- `server/llm/cache.py` - ResponseCache
-- `server/llm/rate_limiter.py` - RateLimiter
-- `server/llm/providers/__init__.py`
-- `server/llm/providers/base.py` - Abstract LLMProvider
-- `server/llm/providers/mock.py` - MockProvider for testing
-- `server/llm/providers/ollama.py` - OllamaProvider
-- `server/llm/providers/nanogpt.py` - NanoGPTProvider
-- `server/llm/services/__init__.py`
-- `server/llm/services/llm_service.py` - Main LLMService
-- `server/llm/services/vision_analyzer.py` - VisionAnalyzer
-- `server/llm/services/behavior_reasoner.py` - BehaviorReasoner
-- `server/llm/prompts/__init__.py`
-- `server/llm/prompts/vision_prompts.py` - Scene analysis prompts
-- `server/llm/prompts/reasoning_prompts.py` - Behavior reasoning prompts
+### State Tracking
+- Server connection status (`server_connected`, `last_heartbeat_ms`)
+- IMU values for UI display (`imu_accel_x`, `imu_accel_y`, `imu_accel_z`)
 
 ### Files Modified
-- `server/cognition/behavior/context.py` - Added llm_triggers support
-- `server/cognition/behavior/evaluator.py` - Added select_best_async method
-- `server/orchestrator.py` - LLM component initialization and integration
-- `shared/constants.py` - Added LLM constants
+- `emulator/virtual_pi.py` - LOCAL_TRIGGER, ScanCommand, PI_STATUS, reflex detection, connection tracking
+- `emulator/__init__.py` - Optional FastAPI import for testing
+- `emulator/static/index.html` - Motor panel, sensor panel, connection status
+- `emulator/static/styles.css` - Motor bars, sensor display, expression states
+- `emulator/static/emulator.js` - SensorGraph class, motor/sensor updates
+
+### Files Created
+- `tests/integration/__init__.py`
+- `tests/integration/test_emulator_components.py` - 21 tests for emulator
+- `tests/integration/manual_test_scenarios.md` - Manual test checklist
 
 ### Test Coverage
-- 60 new tests in `tests/test_server/test_llm/`
-- 659 total tests passing
+- 21 new integration tests
+- 680 total tests passing
 
-### Configuration
-Environment variables:
-- MURPH_LLM_PROVIDER (ollama/nanogpt/mock)
-- NANOGPT_API_KEY
-- NANOGPT_MODEL
-- OLLAMA_BASE_URL
-- OLLAMA_MODEL / OLLAMA_TEXT_MODEL
-- MURPH_LLM_VISION_ENABLED
-- MURPH_LLM_REASONING_ENABLED
-- MURPH_LLM_MAX_RPM
-- MURPH_LLM_VISION_INTERVAL
+### Usage
+1. Start server: `python -m server.main`
+2. Start emulator: `.venv/bin/python -m emulator.app`
+3. Open http://localhost:8080 in browser

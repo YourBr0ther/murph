@@ -20,20 +20,99 @@ from shared.messages import (
     MotorCommand,
     MotorDirection,
     ScanCommand,
+    ScanType,
     SoundCommand,
     StopCommand,
     TurnCommand,
     IMUData,
     TouchData,
     SensorData,
+    PiStatus,
     RobotMessage,
     MessageType,
     create_sensor_data,
     create_command_ack,
     create_heartbeat,
+    create_local_trigger,
 )
 
 logger = logging.getLogger(__name__)
+
+
+class EmulatorReflexProcessor:
+    """
+    Simplified reflex detection for emulator.
+    Auto-detects pickup, bump, shake from IMU data.
+    """
+
+    # Thresholds (from shared/constants.py)
+    PICKUP_THRESHOLD = 1.5  # g
+    BUMP_THRESHOLD = 2.0  # g (sudden spike)
+    SHAKE_GYRO_THRESHOLD = 100.0  # deg/s
+    FREEFALL_THRESHOLD = 0.3  # g
+
+    def __init__(self) -> None:
+        self._accel_history: list[float] = []
+        self._gyro_history: list[float] = []
+        self._cooldowns: dict[str, float] = {}
+        self._was_held = False
+
+    def process_imu(self, imu: IMUData) -> str | None:
+        """
+        Process IMU data and return trigger name if reflex detected.
+
+        Returns:
+            Trigger name ("picked_up_gentle", "bump", "shake", "set_down") or None
+        """
+        # Calculate magnitudes
+        accel_mag = (imu.accel_x**2 + imu.accel_y**2 + imu.accel_z**2) ** 0.5
+        gyro_mag = (imu.gyro_x**2 + imu.gyro_y**2 + imu.gyro_z**2) ** 0.5
+
+        # Track history (last 10 samples)
+        self._accel_history.append(accel_mag)
+        self._gyro_history.append(gyro_mag)
+        if len(self._accel_history) > 10:
+            self._accel_history.pop(0)
+            self._gyro_history.pop(0)
+
+        now = time.time()
+
+        # Check pickup (high upward acceleration)
+        if not self._was_held and accel_mag > self.PICKUP_THRESHOLD:
+            if now - self._cooldowns.get("pickup", 0) > 1.0:
+                self._cooldowns["pickup"] = now
+                self._was_held = True
+                if accel_mag > 2.0:
+                    return "picked_up_fast"
+                return "picked_up_gentle"
+
+        # Check bump (sudden acceleration spike)
+        if len(self._accel_history) >= 3:
+            prev_avg = sum(self._accel_history[:-1]) / len(self._accel_history[:-1])
+            if accel_mag - prev_avg > self.BUMP_THRESHOLD:
+                if now - self._cooldowns.get("bump", 0) > 0.5:
+                    self._cooldowns["bump"] = now
+                    return "bump"
+
+        # Check shake (high gyro)
+        if len(self._gyro_history) >= 5:
+            avg_gyro = sum(self._gyro_history) / len(self._gyro_history)
+            if avg_gyro > self.SHAKE_GYRO_THRESHOLD:
+                if now - self._cooldowns.get("shake", 0) > 1.0:
+                    self._cooldowns["shake"] = now
+                    return "shake"
+
+        # Check set_down (was held, now stable at ~1g)
+        if self._was_held and 0.9 < accel_mag < 1.1:
+            if len(self._accel_history) >= 5:
+                variation = max(self._accel_history) - min(self._accel_history)
+                if variation < 0.2:
+                    if now - self._cooldowns.get("set_down", 0) > 1.0:
+                        self._cooldowns["set_down"] = now
+                        self._was_held = False
+                        return "set_down"
+
+        return None
 
 
 @dataclass
@@ -69,6 +148,15 @@ class VirtualRobotState:
     simulated_bump: bool = False
     simulated_shake: bool = False
 
+    # Connection status
+    server_connected: bool = False
+    last_heartbeat_ms: int = 0
+
+    # Latest IMU values for UI display
+    imu_accel_x: float = 0.0
+    imu_accel_y: float = 0.0
+    imu_accel_z: float = -1.0
+
     def to_dict(self) -> dict[str, Any]:
         """Convert state to dictionary for JSON serialization."""
         return {
@@ -84,6 +172,11 @@ class VirtualRobotState:
             "playing_sound": self.playing_sound,
             "is_being_touched": self.is_being_touched,
             "touched_electrodes": self.touched_electrodes,
+            "server_connected": self.server_connected,
+            "last_heartbeat_ms": self.last_heartbeat_ms,
+            "imu_accel_x": self.imu_accel_x,
+            "imu_accel_y": self.imu_accel_y,
+            "imu_accel_z": self.imu_accel_z,
         }
 
 
@@ -127,6 +220,10 @@ class VirtualPi:
         # Sensor streaming
         self._sensor_task: asyncio.Task[None] | None = None
         self._sensor_interval_ms = 100  # 10Hz
+        self._status_counter = 0  # For periodic PI_STATUS
+
+        # Reflex detection
+        self._reflex_processor = EmulatorReflexProcessor()
 
     @property
     def state(self) -> VirtualRobotState:
@@ -175,6 +272,8 @@ class VirtualPi:
 
                 async with websockets.connect(uri) as ws:
                     self._websocket = ws
+                    self._state.server_connected = True
+                    self._notify_state_change()
                     logger.info("Virtual Pi connected to server")
                     await self._message_loop()
 
@@ -184,6 +283,8 @@ class VirtualPi:
 
             finally:
                 self._websocket = None
+                self._state.server_connected = False
+                self._notify_state_change()
 
     async def _message_loop(self) -> None:
         """Process commands from server."""
@@ -197,7 +298,8 @@ class VirtualPi:
                             await self._execute_command(msg.payload)
 
                     elif msg.message_type == MessageType.HEARTBEAT:
-                        # Echo heartbeat
+                        # Echo heartbeat and record timestamp
+                        self._state.last_heartbeat_ms = int(time.time() * 1000)
                         await self._send_heartbeat()
 
                 except Exception as e:
@@ -216,6 +318,8 @@ class VirtualPi:
         elif isinstance(payload, SoundCommand):
             self._state.playing_sound = payload.sound_name
             self._state.sound_end_time = time.time() + 0.5  # Assume 0.5s sounds
+        elif isinstance(payload, ScanCommand):
+            await self._handle_scan(payload)
         elif isinstance(payload, StopCommand):
             await self._stop_movement()
 
@@ -275,6 +379,31 @@ class VirtualPi:
         self._state.is_moving = False
         self._notify_state_change()
 
+    async def _handle_scan(self, scan: ScanCommand) -> None:
+        """Simulate scanning motion (rotating to look around)."""
+        # Map scan types to rotation angles
+        angle_map = {
+            ScanType.QUICK: 90.0,
+            ScanType.PARTIAL: 180.0,
+            ScanType.FULL: 360.0,
+        }
+        angle = angle_map.get(scan.scan_type, 180.0)
+
+        # Perform gradual rotation in steps
+        steps = max(1, int(abs(angle) / 15))  # 15 degrees per step
+        step_angle = angle / steps
+
+        self._state.is_moving = True
+        self._notify_state_change()
+
+        for _ in range(steps):
+            self._state.heading = (self._state.heading + step_angle) % 360
+            self._notify_state_change()
+            await asyncio.sleep(0.1)  # 100ms per step
+
+        self._state.is_moving = False
+        self._notify_state_change()
+
     async def _simulate_movement(self, duration_ms: float) -> None:
         """Simulate position update during movement."""
         duration_s = duration_ms / 1000.0
@@ -318,9 +447,26 @@ class VirtualPi:
                 imu_data = self._generate_imu_data()
                 await self._send_sensor(SensorData(payload=imu_data))
 
+                # Store IMU values for UI display
+                self._state.imu_accel_x = imu_data.accel_x
+                self._state.imu_accel_y = imu_data.accel_y
+                self._state.imu_accel_z = imu_data.accel_z
+                self._notify_state_change()
+
+                # Auto-detect reflexes from IMU data
+                trigger = self._reflex_processor.process_imu(imu_data)
+                if trigger:
+                    await self._send_local_trigger(trigger, 0.8)
+                    logger.info(f"Auto-detected reflex: {trigger}")
+
                 # Generate and send touch data
                 touch_data = self._generate_touch_data()
                 await self._send_sensor(SensorData(payload=touch_data))
+
+                # Send PI_STATUS every 5 seconds (50 iterations at 100ms)
+                self._status_counter = (self._status_counter + 1) % 50
+                if self._status_counter == 0:
+                    await self._send_status()
 
             await asyncio.sleep(self._sensor_interval_ms / 1000)
 
@@ -397,6 +543,34 @@ class VirtualPi:
             except Exception as e:
                 logger.warning(f"Failed to send heartbeat: {e}")
 
+    async def _send_local_trigger(self, trigger_name: str, intensity: float = 1.0) -> None:
+        """Send local trigger notification to server."""
+        if self._websocket:
+            try:
+                msg = create_local_trigger(trigger_name, intensity)
+                await self._websocket.send(msg.serialize())
+                logger.debug(f"Sent local trigger: {trigger_name} (intensity={intensity})")
+            except Exception as e:
+                logger.warning(f"Failed to send local trigger: {e}")
+
+    async def _send_status(self) -> None:
+        """Send periodic Pi status to server."""
+        if self._websocket:
+            try:
+                status = PiStatus(
+                    cpu_temp=45.0 + random.uniform(-5, 5),
+                    cpu_usage=random.uniform(10, 30),
+                    memory_usage=random.uniform(20, 40),
+                    hardware_ok=True,
+                )
+                msg = RobotMessage(
+                    message_type=MessageType.PI_STATUS,
+                    payload=status,
+                )
+                await self._websocket.send(msg.serialize())
+            except Exception as e:
+                logger.warning(f"Failed to send status: {e}")
+
     def _notify_state_change(self) -> None:
         """Notify listener of state change."""
         if self._on_state_change:
@@ -420,16 +594,19 @@ class VirtualPi:
         """Simulate being picked up."""
         self._state.simulated_pickup = True
         asyncio.create_task(self._clear_event("pickup", duration))
+        asyncio.create_task(self._send_local_trigger("picked_up_gentle", 0.7))
 
     def simulate_bump(self, duration: float = 0.2) -> None:
         """Simulate a bump."""
         self._state.simulated_bump = True
         asyncio.create_task(self._clear_event("bump", duration))
+        asyncio.create_task(self._send_local_trigger("bump", 0.8))
 
     def simulate_shake(self, duration: float = 1.0) -> None:
         """Simulate being shaken."""
         self._state.simulated_shake = True
         asyncio.create_task(self._clear_event("shake", duration))
+        asyncio.create_task(self._send_local_trigger("shake", 0.9))
 
     async def _clear_event(self, event: str, duration: float) -> None:
         """Clear simulated event after duration."""
