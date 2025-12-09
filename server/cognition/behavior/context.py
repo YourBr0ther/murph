@@ -83,6 +83,9 @@ class WorldContext:
     # Custom triggers (extensible)
     active_triggers: set[str] = field(default_factory=set)
 
+    # LLM-derived triggers (managed separately for clear ownership)
+    llm_triggers: set[str] = field(default_factory=set)
+
     def has_trigger(self, trigger: str) -> bool:
         """
         Check if a trigger is currently active.
@@ -98,6 +101,10 @@ class WorldContext:
         """
         # Check explicit triggers first
         if trigger in self.active_triggers:
+            return True
+
+        # Check LLM-derived triggers
+        if trigger in self.llm_triggers:
             return True
 
         # Check computed triggers based on context state
@@ -163,9 +170,22 @@ class WorldContext:
         """Clear all explicit triggers."""
         self.active_triggers.clear()
 
+    def add_llm_trigger(self, trigger: str) -> None:
+        """Add an LLM-derived trigger."""
+        self.llm_triggers.add(trigger)
+
+    def remove_llm_trigger(self, trigger: str) -> None:
+        """Remove an LLM-derived trigger."""
+        self.llm_triggers.discard(trigger)
+
+    def clear_llm_triggers(self) -> None:
+        """Clear all LLM-derived triggers."""
+        self.llm_triggers.clear()
+
     def get_active_triggers(self) -> list[str]:
-        """Get list of all currently active triggers (explicit and computed)."""
+        """Get list of all currently active triggers (explicit, LLM, and computed)."""
         active = list(self.active_triggers)
+        active.extend(self.llm_triggers)
 
         # Check all computed triggers
         computed_triggers = [
@@ -224,6 +244,7 @@ class WorldContext:
             "has_path_to_charger": self.has_path_to_charger,
             "zone_familiarity": self.zone_familiarity,
             "active_triggers": list(self.active_triggers),
+            "llm_triggers": list(self.llm_triggers),
         }
 
     @classmethod
@@ -262,6 +283,7 @@ class WorldContext:
             zone_familiarity=state.get("zone_familiarity", 1.0),
         )
         context.active_triggers = set(state.get("active_triggers", []))
+        context.llm_triggers = set(state.get("llm_triggers", []))
         return context
 
     def __str__(self) -> str:

@@ -16,12 +16,15 @@
 - [x] WebRTC video streaming integration - 2024-12-09
 - [x] Conditional + Loneliness behaviors - 2024-12-09
 - [x] Spatial navigation behaviors - 2024-12-09
+- [x] LLM integration (NanoGPT + Ollama) - 2024-12-09
 
 ## In Progress
 - [ ] None (ready for next feature)
 
 ## Up Next
-- [ ] LLM integration (NanoGPT for vision/reasoning)
+- [ ] Speech recognition and synthesis
+- [ ] Additional behavior sets
+- [ ] Dashboard/web UI for monitoring
 
 ## Blockers / Notes
 - None

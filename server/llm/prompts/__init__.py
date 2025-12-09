@@ -1,0 +1,22 @@
+"""
+Murph - LLM Prompts
+Prompt templates for LLM integration.
+"""
+
+from .reasoning_prompts import (
+    BEHAVIOR_REASONING_SYSTEM_PROMPT,
+    BEHAVIOR_REASONING_USER_PROMPT,
+)
+from .vision_prompts import (
+    SCENE_ANALYSIS_SYSTEM_PROMPT,
+    SCENE_ANALYSIS_USER_PROMPT,
+    VALID_LLM_TRIGGERS,
+)
+
+__all__ = [
+    "SCENE_ANALYSIS_SYSTEM_PROMPT",
+    "SCENE_ANALYSIS_USER_PROMPT",
+    "VALID_LLM_TRIGGERS",
+    "BEHAVIOR_REASONING_SYSTEM_PROMPT",
+    "BEHAVIOR_REASONING_USER_PROMPT",
+]

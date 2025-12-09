@@ -3,52 +3,76 @@
 ## Status: Ready for Next Feature
 
 ## Previous Task Completed
-Spatial Navigation Behaviors - 2024-12-09
+LLM Integration (NanoGPT + Ollama) - 2024-12-09
 
 ## Next Feature Options (from PROGRESS.md)
-1. LLM integration (NanoGPT for vision/reasoning)
+1. Speech recognition and synthesis
+2. Additional behavior sets
+3. Dashboard/web UI for monitoring
 
 ## Notes
-Spatial navigation behaviors implementation is complete with:
+LLM integration implementation is complete with:
 
-### New Navigation Behaviors (8 new)
-- **go_home**: Navigate to home base landmark
-- **go_to_charger**: Navigate to charging station (high priority when low energy)
-- **go_to_landmark**: Generic navigation to any landmark
-- **explore_unfamiliar**: Seek out low-familiarity zones
-- **patrol**: Circuit between known safe landmarks
-- **flee_danger**: Emergency escape from dangerous zones
-- **retreat_to_safe**: Navigate to nearest safe zone
-- **reorient**: Recover position awareness via scanning
+### Multi-Provider Architecture
+- **NanoGPT**: Cloud API provider (OpenAI-compatible)
+- **Ollama**: Local model provider (vision + text models)
+- **Mock**: Testing provider with configurable responses
 
-### New Navigation Actions (3 new)
-- **NavigateToLandmarkAction**: Uses BFS pathfinding on landmark graph
-- **ReorientAction**: Scan and turn sequence to find landmarks
-- **MoveTowardSafetyAction**: Emergency retreat movement
+### Core Infrastructure
+- `LLMConfig`: Configuration with environment variable loading
+- `ResponseCache`: TTL-based LRU cache for response deduplication
+- `RateLimiter`: Token bucket rate limiting (configurable RPM)
+- `LLMService`: Main service orchestrator with lazy initialization
 
-### New Condition Nodes (5 new)
-- **AtLandmarkCondition**: Check if at specific landmark type
-- **ZoneSafetyCondition**: Check zone safety threshold
-- **HasPathCondition**: Check if path exists to target
-- **HasUnexploredZonesCondition**: Check for unfamiliar zones
-- **PositionKnownCondition**: Check if position is known
+### Vision Integration
+- `VisionAnalyzer`: Throttled scene analysis from video frames
+- Structured JSON parsing with fallback for plain text
+- WorldContext trigger updates (llm_person_*, llm_mood_*, etc.)
+- Integration with perception loop (100ms cycle)
 
-### Spatial Map Enhancements
-- **find_path_to()**: BFS pathfinding on landmark connection graph
-- **get_nearest_safe_zone()**: Find closest safe zone via BFS
-- **get_unfamiliar_zones()**: List zones by familiarity
-- **has_path_to()** / **has_unfamiliar_zones()**: Convenience methods
+### Behavior Reasoning Integration
+- `BehaviorReasoner`: LLM-assisted behavior selection
+- Consultation when top behaviors have similar scores
+- Context summarization for prompts
+- Integration with BehaviorEvaluator (`select_best_async`)
+
+### Files Created (17 new)
+- `server/llm/__init__.py`
+- `server/llm/types.py` - LLMMessage, LLMResponse, SceneAnalysis, BehaviorRecommendation
+- `server/llm/config.py` - LLMConfig with env loading
+- `server/llm/cache.py` - ResponseCache
+- `server/llm/rate_limiter.py` - RateLimiter
+- `server/llm/providers/__init__.py`
+- `server/llm/providers/base.py` - Abstract LLMProvider
+- `server/llm/providers/mock.py` - MockProvider for testing
+- `server/llm/providers/ollama.py` - OllamaProvider
+- `server/llm/providers/nanogpt.py` - NanoGPTProvider
+- `server/llm/services/__init__.py`
+- `server/llm/services/llm_service.py` - Main LLMService
+- `server/llm/services/vision_analyzer.py` - VisionAnalyzer
+- `server/llm/services/behavior_reasoner.py` - BehaviorReasoner
+- `server/llm/prompts/__init__.py`
+- `server/llm/prompts/vision_prompts.py` - Scene analysis prompts
+- `server/llm/prompts/reasoning_prompts.py` - Behavior reasoning prompts
 
 ### Files Modified
-- `server/cognition/memory/spatial_types.py` - Added pathfinding methods
-- `server/cognition/behavior/actions.py` - Added 3 navigation actions
-- `server/cognition/behavior/conditions.py` - Added 5 condition nodes
-- `server/cognition/behavior/context.py` - Added navigation triggers
-- `server/cognition/behavior/behavior_registry.py` - Added 8 behaviors
-- `server/cognition/behavior/trees.py` - Added 8 behavior trees
-- `server/cognition/behavior/__init__.py` - Updated exports
-- `tests/test_server/test_navigation_behaviors.py` - 42 new tests
+- `server/cognition/behavior/context.py` - Added llm_triggers support
+- `server/cognition/behavior/evaluator.py` - Added select_best_async method
+- `server/orchestrator.py` - LLM component initialization and integration
+- `shared/constants.py` - Added LLM constants
 
 ### Test Coverage
-- 42 new tests for navigation behaviors
-- 599 total tests passing
+- 60 new tests in `tests/test_server/test_llm/`
+- 659 total tests passing
+
+### Configuration
+Environment variables:
+- MURPH_LLM_PROVIDER (ollama/nanogpt/mock)
+- NANOGPT_API_KEY
+- NANOGPT_MODEL
+- OLLAMA_BASE_URL
+- OLLAMA_MODEL / OLLAMA_TEXT_MODEL
+- MURPH_LLM_VISION_ENABLED
+- MURPH_LLM_REASONING_ENABLED
+- MURPH_LLM_MAX_RPM
+- MURPH_LLM_VISION_INTERVAL

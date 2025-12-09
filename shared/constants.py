@@ -56,3 +56,11 @@ VIDEO_CODEC = "h264"
 VISION_RESULT_TTL_MS = 500  # How long vision results are valid
 VISION_FRAME_STALE_MS = 2000  # Consider frame stale after this time
 VISION_FACE_DISTANCE_CALIBRATION_PX = 160  # Face height pixels at 50cm distance
+
+# LLM Integration
+LLM_DEFAULT_PROVIDER = "ollama"  # Default LLM provider
+LLM_VISION_INTERVAL_MS = 3000  # How often to run LLM vision analysis
+LLM_REQUEST_TIMEOUT_MS = 10000  # Timeout for LLM requests
+LLM_CACHE_TTL_MS = 30000  # Cache TTL for LLM responses
+LLM_MAX_REQUESTS_PER_MINUTE = 20  # Rate limit for LLM requests
+LLM_REASONING_THRESHOLD = 0.3  # Score diff threshold for behavior reasoning

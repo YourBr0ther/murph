@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from shared.constants import (
     ACTION_CYCLE_MS,
@@ -37,6 +37,9 @@ from .communication.websocket_server import PiConnectionManager
 from .perception.sensor_processor import SensorProcessor
 from .video import FrameBuffer, VideoReceiver, VisionProcessor
 
+if TYPE_CHECKING:
+    from .llm import BehaviorReasoner, LLMConfig, LLMService, VisionAnalyzer
+
 logger = logging.getLogger(__name__)
 
 
@@ -60,6 +63,7 @@ class CognitionOrchestrator:
         self,
         host: str = DEFAULT_SERVER_HOST,
         port: int = DEFAULT_SERVER_PORT,
+        llm_config: LLMConfig | None = None,
     ) -> None:
         """
         Initialize the orchestrator.
@@ -67,6 +71,7 @@ class CognitionOrchestrator:
         Args:
             host: WebSocket server host
             port: WebSocket server port
+            llm_config: Optional LLM configuration (uses env if None)
         """
         self._host = host
         self._port = port
@@ -104,10 +109,16 @@ class CognitionOrchestrator:
         )
         self._vision_processor = VisionProcessor()
 
+        # LLM integration (optional)
+        self._llm_config = llm_config
+        self._llm_service: LLMService | None = None
+        self._vision_analyzer: VisionAnalyzer | None = None
+        self._behavior_reasoner: BehaviorReasoner | None = None
+
         # Needs system (cognition)
         self._needs_system = NeedsSystem()
 
-        # Behavior evaluation and selection (cognition)
+        # Behavior evaluation and selection (cognition) - reasoner set in start()
         self._evaluator = BehaviorEvaluator(self._needs_system)
 
         # Behavior tree execution
@@ -140,6 +151,9 @@ class CognitionOrchestrator:
 
         self._running = True
 
+        # Initialize LLM integration if configured
+        await self._init_llm()
+
         # Start WebSocket server
         await self._connection.start()
         logger.info(f"WebSocket server started on ws://{self._host}:{self._port}")
@@ -156,6 +170,43 @@ class CognitionOrchestrator:
         ]
 
         logger.info("All cognitive loops started")
+
+    async def _init_llm(self) -> None:
+        """Initialize LLM components if configured."""
+        # Get config (from parameter or environment)
+        if self._llm_config is None:
+            from .llm import LLMConfig
+            self._llm_config = LLMConfig.from_env()
+
+        # Skip if neither vision nor reasoning enabled
+        if not self._llm_config.vision_enabled and not self._llm_config.reasoning_enabled:
+            logger.info("LLM integration disabled")
+            return
+
+        # Validate config
+        issues = self._llm_config.validate()
+        if issues:
+            logger.warning(f"LLM config issues: {issues}")
+            return
+
+        # Create LLM service
+        from .llm import BehaviorReasoner, LLMService, VisionAnalyzer
+
+        self._llm_service = LLMService(self._llm_config)
+
+        # Create vision analyzer if enabled
+        if self._llm_config.vision_enabled:
+            self._vision_analyzer = VisionAnalyzer(self._llm_service, self._llm_config)
+            logger.info("LLM vision analyzer initialized")
+
+        # Create behavior reasoner if enabled
+        if self._llm_config.reasoning_enabled:
+            self._behavior_reasoner = BehaviorReasoner(self._llm_service, self._llm_config)
+            # Update evaluator with reasoner
+            self._evaluator._reasoner = self._behavior_reasoner
+            logger.info("LLM behavior reasoner initialized")
+
+        logger.info(f"LLM integration initialized (provider: {self._llm_config.provider})")
 
     async def stop(self) -> None:
         """
@@ -180,6 +231,11 @@ class CognitionOrchestrator:
                 pass
 
         self._tasks.clear()
+
+        # Stop LLM service
+        if self._llm_service:
+            await self._llm_service.close()
+            logger.info("LLM service closed")
 
         # Stop video receiver
         await self._video_receiver.stop()
@@ -215,9 +271,19 @@ class CognitionOrchestrator:
                         self._vision_processor.update_world_context(
                             self._world_context, vision_result
                         )
+
+                    # LLM vision analysis (periodic, non-blocking)
+                    if self._vision_analyzer and frame is not None:
+                        scene_analysis = await self._vision_analyzer.analyze_if_ready(frame)
+                        if scene_analysis:
+                            self._vision_analyzer.update_world_context(
+                                self._world_context, scene_analysis
+                            )
                 else:
                     # Clear vision state if no fresh frame
                     self._vision_processor.update_world_context(self._world_context, None)
+                    if self._vision_analyzer:
+                        self._vision_analyzer.update_world_context(self._world_context, None)
 
                 # Update executor's context for condition nodes
                 self._executor.update_context(self._world_context)
@@ -261,7 +327,11 @@ class CognitionOrchestrator:
 
                 # If no behavior running, select and start one
                 if not self._executor.is_running:
-                    best = self._evaluator.select_best(self._world_context)
+                    # Use async selection if reasoner available (may consult LLM)
+                    if self._behavior_reasoner:
+                        best = await self._evaluator.select_best_async(self._world_context)
+                    else:
+                        best = self._evaluator.select_best(self._world_context)
                     if best:
                         self._start_behavior(best)
 

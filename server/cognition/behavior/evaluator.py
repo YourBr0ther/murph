@@ -3,14 +3,22 @@ Murph - Behavior Evaluator
 Utility AI behavior selection engine.
 """
 
+from __future__ import annotations
+
+import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .behavior import Behavior
 from .behavior_registry import BehaviorRegistry
 from .context import WorldContext
 from ..needs import NeedsSystem
+
+if TYPE_CHECKING:
+    from server.llm.services.behavior_reasoner import BehaviorReasoner
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -69,6 +77,7 @@ class BehaviorEvaluator:
         self,
         needs_system: NeedsSystem,
         registry: BehaviorRegistry | None = None,
+        behavior_reasoner: BehaviorReasoner | None = None,
     ) -> None:
         """
         Initialize the behavior evaluator.
@@ -76,11 +85,15 @@ class BehaviorEvaluator:
         Args:
             needs_system: The needs system to read need states from
             registry: Behavior registry to use. If None, creates default.
+            behavior_reasoner: Optional LLM reasoner for ambiguous situations
         """
         self.needs_system = needs_system
         self.registry = registry or BehaviorRegistry()
         self._cooldowns: dict[str, float] = {}  # behavior_name -> last_used_time
         self._last_evaluation_time: float = time.time()
+        self._reasoner = behavior_reasoner
+        self._recent_behaviors: list[str] = []  # Track for LLM context
+        self._max_recent_behaviors = 10
 
     def evaluate(
         self,
@@ -173,6 +186,57 @@ class BehaviorEvaluator:
         """
         scored = self.evaluate(context, exclude_behaviors)
         return scored[:n]
+
+    async def select_best_async(
+        self,
+        context: WorldContext | None = None,
+        exclude_behaviors: list[str] | None = None,
+    ) -> ScoredBehavior | None:
+        """
+        Select the highest-scoring behavior, optionally consulting LLM.
+
+        When a BehaviorReasoner is configured and the top behaviors have
+        similar scores (ambiguous situation), consults the LLM for guidance.
+
+        Args:
+            context: Current world state for opportunity bonuses
+            exclude_behaviors: Behavior names to exclude
+
+        Returns:
+            The selected behavior, or None if no behaviors available
+        """
+        scored = self.evaluate(context, exclude_behaviors)
+        if not scored:
+            return None
+
+        # If no reasoner, fall back to top utility score
+        if not self._reasoner:
+            return scored[0]
+
+        # Check if LLM should help with decision
+        if await self._reasoner.should_consult(scored):
+            recommendation = await self._reasoner.recommend_behavior(
+                context,
+                scored,
+                self._recent_behaviors,
+            )
+            if recommendation:
+                # Find the recommended behavior
+                for sb in scored:
+                    if sb.behavior.name == recommendation.recommended_behavior:
+                        logger.info(
+                            f"LLM recommended '{sb.behavior.name}': "
+                            f"{recommendation.reasoning}"
+                        )
+                        return sb
+                # If recommended behavior not found, log and fall back
+                logger.warning(
+                    f"LLM recommended unknown behavior: "
+                    f"{recommendation.recommended_behavior}"
+                )
+
+        # Fall back to top utility score
+        return scored[0]
 
     def _calculate_need_modifier(self, behavior: Behavior) -> float:
         """
@@ -292,6 +356,15 @@ class BehaviorEvaluator:
             behavior_name: Name of the behavior that was used
         """
         self._cooldowns[behavior_name] = time.time()
+
+        # Track recent behaviors for LLM context
+        self._recent_behaviors.append(behavior_name)
+        if len(self._recent_behaviors) > self._max_recent_behaviors:
+            self._recent_behaviors.pop(0)
+
+        # Also notify reasoner if present
+        if self._reasoner:
+            self._reasoner.record_behavior_used(behavior_name)
 
     def clear_cooldown(self, behavior_name: str) -> None:
         """
