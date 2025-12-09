@@ -26,6 +26,7 @@ ui_clients: list[WebSocket] = []
 def create_app(
     server_host: str = "localhost",
     server_port: int = 8765,
+    video_enabled: bool = True,
 ) -> FastAPI:
     """
     Create the emulator FastAPI application.
@@ -33,6 +34,7 @@ def create_app(
     Args:
         server_host: Server brain host
         server_port: Server brain port
+        video_enabled: Enable webcam video streaming
 
     Returns:
         Configured FastAPI application
@@ -44,6 +46,9 @@ def create_app(
         description="Web-based robot simulator for testing",
         version="1.0.0",
     )
+
+    # Store video_enabled for use in startup
+    app.state.video_enabled = video_enabled
 
     # Static files
     static_dir = Path(__file__).parent / "static"
@@ -58,9 +63,11 @@ def create_app(
             server_host=server_host,
             server_port=server_port,
             on_state_change=on_state_change,
+            video_enabled=app.state.video_enabled,
         )
         await virtual_pi.start()
-        logger.info("Emulator started")
+        video_status = "enabled" if app.state.video_enabled else "disabled"
+        logger.info(f"Emulator started (video: {video_status})")
 
     @app.on_event("shutdown")
     async def shutdown():
@@ -82,11 +89,17 @@ def create_app(
     async def get_status():
         """Get current robot status."""
         if virtual_pi:
+            # Get video stats if streamer is available
+            video_stats = {}
+            if virtual_pi._video_streamer:
+                video_stats = virtual_pi._video_streamer.get_stats()
+
             return {
                 "connected": virtual_pi.is_connected,
                 "state": virtual_pi.state.to_dict(),
+                "video": video_stats,
             }
-        return {"connected": False, "state": None}
+        return {"connected": False, "state": None, "video": {}}
 
     @app.post("/api/touch")
     async def simulate_touch(electrodes: list[int]):
@@ -321,8 +334,36 @@ def get_fallback_html() -> str:
 
 # Entry point for running the emulator
 if __name__ == "__main__":
+    import argparse
     import uvicorn
 
+    parser = argparse.ArgumentParser(description="Murph Robot Emulator")
+    parser.add_argument(
+        "--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)"
+    )
+    parser.add_argument(
+        "--port", type=int, default=8080, help="Port to bind to (default: 8080)"
+    )
+    parser.add_argument(
+        "--server-host", default="localhost", help="Server brain host (default: localhost)"
+    )
+    parser.add_argument(
+        "--server-port", type=int, default=8765, help="Server brain port (default: 8765)"
+    )
+    parser.add_argument(
+        "--video/--no-video",
+        dest="video",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+        help="Enable/disable webcam video streaming (default: enabled)",
+    )
+
+    args = parser.parse_args()
+
     logging.basicConfig(level=logging.INFO)
-    app = create_app()
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    app = create_app(
+        server_host=args.server_host,
+        server_port=args.server_port,
+        video_enabled=args.video,
+    )
+    uvicorn.run(app, host=args.host, port=args.port)

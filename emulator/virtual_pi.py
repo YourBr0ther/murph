@@ -11,7 +11,7 @@ import math
 import random
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from shared.constants import DEFAULT_SERVER_HOST, DEFAULT_SERVER_PORT
 from shared.messages import (
@@ -30,11 +30,16 @@ from shared.messages import (
     PiStatus,
     RobotMessage,
     MessageType,
+    WebRTCAnswer,
+    WebRTCIceCandidate,
     create_sensor_data,
     create_command_ack,
     create_heartbeat,
     create_local_trigger,
 )
+
+if TYPE_CHECKING:
+    from .video import EmulatorVideoStreamer, MockWebcamCamera, WebcamCamera
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +162,12 @@ class VirtualRobotState:
     imu_accel_y: float = 0.0
     imu_accel_z: float = -1.0
 
+    # Video streaming state
+    video_enabled: bool = False
+    video_streaming: bool = False
+    video_connected: bool = False
+    webcam_available: bool = False
+
     def to_dict(self) -> dict[str, Any]:
         """Convert state to dictionary for JSON serialization."""
         return {
@@ -177,6 +188,10 @@ class VirtualRobotState:
             "imu_accel_x": self.imu_accel_x,
             "imu_accel_y": self.imu_accel_y,
             "imu_accel_z": self.imu_accel_z,
+            "video_enabled": self.video_enabled,
+            "video_streaming": self.video_streaming,
+            "video_connected": self.video_connected,
+            "webcam_available": self.webcam_available,
         }
 
 
@@ -197,6 +212,7 @@ class VirtualPi:
         server_host: str = DEFAULT_SERVER_HOST,
         server_port: int = DEFAULT_SERVER_PORT,
         on_state_change: Callable[[VirtualRobotState], None] | None = None,
+        video_enabled: bool = True,
     ) -> None:
         """
         Initialize virtual Pi.
@@ -205,6 +221,7 @@ class VirtualPi:
             server_host: Server to connect to
             server_port: Server port
             on_state_change: Callback when robot state changes
+            video_enabled: Enable webcam video streaming
         """
         self._host = server_host
         self._port = server_port
@@ -212,6 +229,7 @@ class VirtualPi:
         self._on_state_change = on_state_change
         self._running = False
         self._websocket = None
+        self._video_enabled = video_enabled
 
         # Movement simulation
         self._move_task: asyncio.Task[None] | None = None
@@ -224,6 +242,11 @@ class VirtualPi:
 
         # Reflex detection
         self._reflex_processor = EmulatorReflexProcessor()
+
+        # Video streaming
+        self._camera: WebcamCamera | MockWebcamCamera | None = None
+        self._video_streamer: EmulatorVideoStreamer | None = None
+        self._state.video_enabled = video_enabled
 
     @property
     def state(self) -> VirtualRobotState:
@@ -238,6 +261,11 @@ class VirtualPi:
     async def start(self) -> None:
         """Start virtual Pi and connect to server."""
         self._running = True
+
+        # Initialize video if enabled
+        if self._video_enabled:
+            await self._init_video()
+
         asyncio.create_task(self._connect_to_server())
         self._sensor_task = asyncio.create_task(self._sensor_loop())
         logger.info("Virtual Pi started")
@@ -245,6 +273,9 @@ class VirtualPi:
     async def stop(self) -> None:
         """Stop virtual Pi."""
         self._running = False
+
+        # Shutdown video streaming
+        await self._shutdown_video()
 
         if self._move_task and not self._move_task.done():
             self._move_task.cancel()
@@ -256,6 +287,54 @@ class VirtualPi:
             await self._websocket.close()
 
         logger.info("Virtual Pi stopped")
+
+    async def _init_video(self) -> None:
+        """Initialize webcam and video streamer."""
+        from .video import EmulatorVideoStreamer, MockWebcamCamera, WebcamCamera
+
+        logger.info("Initializing video streaming...")
+
+        # Try real webcam first
+        self._camera = WebcamCamera()
+        if await self._camera.initialize():
+            self._state.webcam_available = True
+            logger.info("Webcam initialized successfully")
+        else:
+            # Fall back to mock
+            logger.warning("Webcam not available, using mock frames")
+            self._camera = MockWebcamCamera()
+            await self._camera.initialize()
+            self._state.webcam_available = False
+
+        # Create video streamer
+        self._video_streamer = EmulatorVideoStreamer(
+            camera=self._camera,
+            on_signaling=self._send_webrtc_signaling,
+        )
+        logger.info("Video streamer initialized")
+
+    async def _shutdown_video(self) -> None:
+        """Shutdown video streaming."""
+        if self._video_streamer:
+            await self._video_streamer.stop()
+            self._video_streamer = None
+            self._state.video_streaming = False
+            self._state.video_connected = False
+
+        if self._camera:
+            await self._camera.shutdown()
+            self._camera = None
+
+        logger.info("Video streaming shutdown")
+
+    async def _send_webrtc_signaling(self, msg: RobotMessage) -> None:
+        """Send WebRTC signaling message via WebSocket."""
+        if self._websocket:
+            try:
+                await self._websocket.send(msg.serialize())
+                logger.debug(f"Sent WebRTC signaling: {msg.message_type.name}")
+            except Exception as e:
+                logger.warning(f"Failed to send WebRTC signaling: {e}")
 
     async def _connect_to_server(self) -> None:
         """Connect to server WebSocket."""
@@ -275,6 +354,14 @@ class VirtualPi:
                     self._state.server_connected = True
                     self._notify_state_change()
                     logger.info("Virtual Pi connected to server")
+
+                    # Start video streaming when connected
+                    if self._video_streamer and self._video_enabled:
+                        await self._video_streamer.start()
+                        self._state.video_streaming = True
+                        self._notify_state_change()
+                        logger.info("Video streaming started")
+
                     await self._message_loop()
 
             except Exception as e:
@@ -284,6 +371,13 @@ class VirtualPi:
             finally:
                 self._websocket = None
                 self._state.server_connected = False
+
+                # Stop video streaming on disconnect
+                if self._video_streamer:
+                    await self._video_streamer.stop()
+                    self._state.video_streaming = False
+                    self._state.video_connected = False
+
                 self._notify_state_change()
 
     async def _message_loop(self) -> None:
@@ -301,6 +395,20 @@ class VirtualPi:
                         # Echo heartbeat and record timestamp
                         self._state.last_heartbeat_ms = int(time.time() * 1000)
                         await self._send_heartbeat()
+
+                    elif msg.message_type == MessageType.WEBRTC_ANSWER:
+                        # Handle WebRTC answer from server
+                        if isinstance(msg.payload, WebRTCAnswer) and self._video_streamer:
+                            await self._video_streamer.handle_answer(msg.payload.sdp)
+                            self._state.video_connected = True
+                            self._notify_state_change()
+                            logger.info("WebRTC answer received")
+
+                    elif msg.message_type == MessageType.WEBRTC_ICE_CANDIDATE:
+                        # Handle ICE candidate from server
+                        if isinstance(msg.payload, WebRTCIceCandidate) and self._video_streamer:
+                            await self._video_streamer.add_ice_candidate(msg.payload)
+                            logger.debug("WebRTC ICE candidate received")
 
                 except Exception as e:
                     logger.error(f"Failed to process message: {e}")
