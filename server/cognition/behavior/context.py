@@ -74,6 +74,12 @@ class WorldContext:
     at_charging_station: bool = False
     position_confidence: float = 0.0  # 0 = lost, 1 = certain
 
+    # Navigation state (populated by MemorySystem.spatial_map)
+    has_unfamiliar_zones: bool = False
+    has_path_to_home: bool = False
+    has_path_to_charger: bool = False
+    zone_familiarity: float = 1.0  # 0 = unfamiliar, 1 = well-explored
+
     # Custom triggers (extensible)
     active_triggers: set[str] = field(default_factory=set)
 
@@ -135,6 +141,12 @@ class WorldContext:
             "position_known": self.position_confidence > 0.5,
             "position_lost": self.position_confidence < 0.2,
             "near_landmark": self.near_known_landmark,
+            # Navigation triggers
+            "has_unfamiliar_zones": self.has_unfamiliar_zones,
+            "has_path_home": self.has_path_to_home,
+            "has_path_charger": self.has_path_to_charger,
+            "in_unfamiliar_zone": self.zone_familiarity < 0.5,
+            "in_familiar_zone": self.zone_familiarity >= 0.5,
         }
 
         return trigger_checks.get(trigger, False)
@@ -167,6 +179,9 @@ class WorldContext:
             # Spatial awareness triggers
             "at_home", "at_charger", "in_safe_zone", "in_danger_zone",
             "position_known", "position_lost", "near_landmark",
+            # Navigation triggers
+            "has_unfamiliar_zones", "has_path_home", "has_path_charger",
+            "in_unfamiliar_zone", "in_familiar_zone",
         ]
 
         for trigger in computed_triggers:
@@ -204,6 +219,10 @@ class WorldContext:
             "at_home_base": self.at_home_base,
             "at_charging_station": self.at_charging_station,
             "position_confidence": self.position_confidence,
+            "has_unfamiliar_zones": self.has_unfamiliar_zones,
+            "has_path_to_home": self.has_path_to_home,
+            "has_path_to_charger": self.has_path_to_charger,
+            "zone_familiarity": self.zone_familiarity,
             "active_triggers": list(self.active_triggers),
         }
 
@@ -237,6 +256,10 @@ class WorldContext:
             at_home_base=state.get("at_home_base", False),
             at_charging_station=state.get("at_charging_station", False),
             position_confidence=state.get("position_confidence", 0.0),
+            has_unfamiliar_zones=state.get("has_unfamiliar_zones", False),
+            has_path_to_home=state.get("has_path_to_home", False),
+            has_path_to_charger=state.get("has_path_to_charger", False),
+            zone_familiarity=state.get("zone_familiarity", 1.0),
         )
         context.active_triggers = set(state.get("active_triggers", []))
         return context
@@ -272,10 +295,14 @@ class WorldContext:
             "spatial": {
                 "zone_type": self.current_zone_type,
                 "zone_safety": self.current_zone_safety,
+                "zone_familiarity": self.zone_familiarity,
                 "at_home": self.at_home_base,
                 "near_landmark": self.near_known_landmark,
                 "landmark_type": self.landmark_type_nearby,
                 "position_confidence": self.position_confidence,
+                "has_unfamiliar_zones": self.has_unfamiliar_zones,
+                "has_path_home": self.has_path_to_home,
+                "has_path_charger": self.has_path_to_charger,
             },
             "active_triggers": self.get_active_triggers(),
         }

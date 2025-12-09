@@ -464,6 +464,150 @@ class SpatialMapMemory:
             last_update=state.get("last_update", time.time()),
         )
 
+    def find_path_to(
+        self,
+        target_type: str,
+        target_id: str | None = None,
+    ) -> list[str] | None:
+        """
+        Find a path from current landmark to a target.
+
+        Uses BFS on the landmark connection graph. Returns the sequence
+        of landmark IDs to traverse.
+
+        Args:
+            target_type: Type of landmark to find ("home_base", "charging_station",
+                        "safe_zone", "unfamiliar_zone")
+            target_id: Specific landmark ID (overrides type search)
+
+        Returns:
+            List of landmark IDs forming the path (including current and target),
+            empty list if already at target, or None if no path found.
+        """
+        if not self.is_position_known:
+            return None
+
+        # Find target landmark
+        target_landmark_id = target_id
+        if target_landmark_id is None:
+            if target_type == "home_base":
+                target_landmark_id = self.home_landmark_id
+            elif target_type == "safe_zone":
+                safe_landmark = self.get_nearest_safe_zone()
+                target_landmark_id = safe_landmark
+            elif target_type == "unfamiliar_zone":
+                unfamiliar = self.get_unfamiliar_zones()
+                target_landmark_id = unfamiliar[0] if unfamiliar else None
+            else:
+                # Search for landmark by type
+                for lm in self.landmarks.values():
+                    if lm.landmark_type == target_type:
+                        target_landmark_id = lm.landmark_id
+                        break
+
+        if target_landmark_id is None:
+            return None
+
+        if target_landmark_id == self.current_landmark_id:
+            return []  # Already there
+
+        # BFS to find shortest path
+        from collections import deque
+
+        queue: deque[tuple[str, list[str]]] = deque(
+            [(self.current_landmark_id, [self.current_landmark_id])]
+        )
+        visited = {self.current_landmark_id}
+
+        while queue:
+            current, path = queue.popleft()
+            landmark = self.landmarks.get(current)
+            if not landmark:
+                continue
+
+            for neighbor_id in landmark.connections:
+                if neighbor_id == target_landmark_id:
+                    return path + [neighbor_id]
+                if neighbor_id not in visited and neighbor_id in self.landmarks:
+                    visited.add(neighbor_id)
+                    queue.append((neighbor_id, path + [neighbor_id]))
+
+        return None  # No path found
+
+    def get_nearest_safe_zone(self) -> str | None:
+        """
+        Find the nearest landmark associated with a safe zone.
+
+        Uses BFS from current position to find closest safe zone.
+
+        Returns:
+            Landmark ID of nearest safe zone, or None if none found.
+        """
+        if not self.is_position_known:
+            return None
+
+        # Collect all safe zone landmarks
+        safe_landmarks = set()
+        for zone in self.zones.values():
+            if zone.is_safe:
+                safe_landmarks.add(zone.primary_landmark_id)
+
+        if not safe_landmarks:
+            return None
+
+        # Check if current landmark is in a safe zone
+        if self.current_landmark_id in safe_landmarks:
+            return self.current_landmark_id
+
+        # BFS to find closest
+        from collections import deque
+
+        queue: deque[str] = deque([self.current_landmark_id])
+        visited = {self.current_landmark_id}
+
+        while queue:
+            current = queue.popleft()
+            landmark = self.landmarks.get(current)
+            if not landmark:
+                continue
+
+            for neighbor_id in landmark.connections:
+                if neighbor_id in safe_landmarks:
+                    return neighbor_id
+                if neighbor_id not in visited and neighbor_id in self.landmarks:
+                    visited.add(neighbor_id)
+                    queue.append(neighbor_id)
+
+        return None
+
+    def get_unfamiliar_zones(self, threshold: float = 0.5) -> list[str]:
+        """
+        Find zones with familiarity below threshold.
+
+        Args:
+            threshold: Maximum familiarity to consider unfamiliar (default 0.5)
+
+        Returns:
+            List of landmark IDs for unfamiliar zones, sorted by familiarity
+            (least familiar first).
+        """
+        unfamiliar = []
+        for zone in self.zones.values():
+            if zone.familiarity < threshold:
+                unfamiliar.append((zone.primary_landmark_id, zone.familiarity))
+
+        # Sort by familiarity (least familiar first)
+        unfamiliar.sort(key=lambda x: x[1])
+        return [lm_id for lm_id, _ in unfamiliar]
+
+    def has_unfamiliar_zones(self, threshold: float = 0.5) -> bool:
+        """Check if any unfamiliar zones exist."""
+        return any(zone.familiarity < threshold for zone in self.zones.values())
+
+    def has_path_to(self, target_type: str) -> bool:
+        """Check if a path exists to a target type."""
+        return self.find_path_to(target_type) is not None
+
     def __str__(self) -> str:
         pos_str = (
             f"at {self.current_landmark_id[:8]}"

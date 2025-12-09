@@ -3,48 +3,52 @@
 ## Status: Ready for Next Feature
 
 ## Previous Task Completed
-Conditional + Loneliness Behaviors - 2024-12-09
+Spatial Navigation Behaviors - 2024-12-09
 
 ## Next Feature Options (from PROGRESS.md)
-1. Spatial navigation behaviors (use spatial map for exploration)
+1. LLM integration (NanoGPT for vision/reasoning)
 
 ## Notes
-Conditional and loneliness behaviors implementation is complete with:
+Spatial navigation behaviors implementation is complete with:
 
-### New Loneliness Behaviors (4 new)
-- **sigh**: Express loneliness with sad sound/expression (triggered by "lonely")
-- **mope**: Slow, sad movement when very lonely (triggered by "very_lonely")
-- **perk_up_hopeful**: Quick hopeful look around for someone (triggered by "lonely")
-- **seek_company**: Actively search for people, react with joy if found (triggered by "lonely"/"very_lonely")
+### New Navigation Behaviors (8 new)
+- **go_home**: Navigate to home base landmark
+- **go_to_charger**: Navigate to charging station (high priority when low energy)
+- **go_to_landmark**: Generic navigation to any landmark
+- **explore_unfamiliar**: Seek out low-familiarity zones
+- **patrol**: Circuit between known safe landmarks
+- **flee_danger**: Emergency escape from dangerous zones
+- **retreat_to_safe**: Navigate to nearest safe zone
+- **reorient**: Recover position awareness via scanning
 
-### Conditional Behavior Trees (3 refactored)
-Using py-trees Selector composite with memory=False for condition re-evaluation:
+### New Navigation Actions (3 new)
+- **NavigateToLandmarkAction**: Uses BFS pathfinding on landmark graph
+- **ReorientAction**: Scan and turn sequence to find landmarks
+- **MoveTowardSafetyAction**: Emergency retreat movement
 
-- **explore**: Now reacts when person appears mid-exploration (PersonDetectedCondition)
-  - If person within 150cm: express happiness, greet, and stop
-  - Otherwise: continue normal exploration
+### New Condition Nodes (5 new)
+- **AtLandmarkCondition**: Check if at specific landmark type
+- **ZoneSafetyCondition**: Check zone safety threshold
+- **HasPathCondition**: Check if path exists to target
+- **HasUnexploredZonesCondition**: Check for unfamiliar zones
+- **PositionKnownCondition**: Check if position is known
 
-- **wander**: Now reacts when near edge (TriggerActiveCondition("near_edge"))
-  - If near edge: alert expression, stop, back up, turn 180°
-  - Otherwise: continue normal wandering
-
-- **seek_company**: Conditional tree that celebrates finding someone
-  - If person found: express happiness, play sound, approach
-  - Otherwise: scan, move around, end sad
+### Spatial Map Enhancements
+- **find_path_to()**: BFS pathfinding on landmark connection graph
+- **get_nearest_safe_zone()**: Find closest safe zone via BFS
+- **get_unfamiliar_zones()**: List zones by familiarity
+- **has_path_to()** / **has_unfamiliar_zones()**: Convenience methods
 
 ### Files Modified
-- `server/cognition/behavior/actions.py` - Added "sigh" sound (1.5s duration)
-- `server/cognition/behavior/behavior_registry.py` - Added 4 loneliness behaviors
-- `server/cognition/behavior/trees.py` - Added 4 loneliness trees, refactored explore/wander/seek_company
-- `tests/test_server/test_loneliness_behaviors.py` - 23 new tests
-- `tests/test_server/test_behavior_executor.py` - Updated tree count assertion
+- `server/cognition/memory/spatial_types.py` - Added pathfinding methods
+- `server/cognition/behavior/actions.py` - Added 3 navigation actions
+- `server/cognition/behavior/conditions.py` - Added 5 condition nodes
+- `server/cognition/behavior/context.py` - Added navigation triggers
+- `server/cognition/behavior/behavior_registry.py` - Added 8 behaviors
+- `server/cognition/behavior/trees.py` - Added 8 behavior trees
+- `server/cognition/behavior/__init__.py` - Updated exports
+- `tests/test_server/test_navigation_behaviors.py` - 42 new tests
 
 ### Test Coverage
-- 23 new tests for loneliness behaviors and conditional trees
-- 557 total tests passing
-
-### Loneliness Trigger System
-- `lonely` trigger activates after 5 minutes without interaction
-- `very_lonely` trigger activates after 10 minutes without interaction
-- Loneliness behaviors get opportunity bonus from these triggers
-- Behaviors have cooldowns to prevent repetitive expression (60s-180s)
+- 42 new tests for navigation behaviors
+- 599 total tests passing

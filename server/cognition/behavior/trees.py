@@ -16,8 +16,17 @@ from .actions import (
     WaitAction,
     ScanAction,
     StopAction,
+    NavigateToLandmarkAction,
+    ReorientAction,
+    MoveTowardSafetyAction,
 )
-from .conditions import PersonDetectedCondition, TriggerActiveCondition
+from .conditions import (
+    PersonDetectedCondition,
+    TriggerActiveCondition,
+    AtLandmarkCondition,
+    ZoneSafetyCondition,
+    PositionKnownCondition,
+)
 
 
 class BehaviorTreeFactory:
@@ -613,5 +622,263 @@ def create_seek_company_tree() -> py_trees.behaviour.Behaviour:
                     SetExpressionAction("sad"),
                 ],
             ),
+        ],
+    )
+
+
+# --- NAVIGATION BEHAVIORS ---
+
+
+@BehaviorTreeFactory.register_tree("go_home")
+def create_go_home_tree() -> py_trees.behaviour.Behaviour:
+    """Navigate to home base with position-lost fallback."""
+    return Selector(
+        name="go_home",
+        memory=False,
+        children=[
+            # Branch 1: Already at home - success
+            Sequence(
+                name="go_home_arrived",
+                memory=True,
+                children=[
+                    TriggerActiveCondition("at_home"),
+                    SetExpressionAction("happy"),
+                    PlaySoundAction("happy"),
+                ],
+            ),
+            # Branch 2: Position lost - scan first
+            Sequence(
+                name="go_home_lost",
+                memory=True,
+                children=[
+                    TriggerActiveCondition("position_lost"),
+                    SetExpressionAction("alert"),
+                    ScanAction("full"),
+                    WaitAction(1.0),
+                ],
+            ),
+            # Branch 3: Navigate to home
+            Sequence(
+                name="go_home_navigate",
+                memory=True,
+                children=[
+                    SetExpressionAction("neutral"),
+                    NavigateToLandmarkAction(target_type="home_base", timeout=45.0),
+                    SetExpressionAction("happy"),
+                ],
+            ),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("go_to_charger")
+def create_go_to_charger_tree() -> py_trees.behaviour.Behaviour:
+    """Navigate to charging station - high priority when energy low."""
+    return Selector(
+        name="go_to_charger",
+        memory=False,
+        children=[
+            # Branch 1: Already at charger
+            Sequence(
+                name="go_to_charger_arrived",
+                memory=True,
+                children=[
+                    TriggerActiveCondition("at_charger"),
+                    SetExpressionAction("sleepy"),
+                    StopAction(),
+                ],
+            ),
+            # Branch 2: Position lost - scan desperately
+            Sequence(
+                name="go_to_charger_lost",
+                memory=True,
+                children=[
+                    TriggerActiveCondition("position_lost"),
+                    SetExpressionAction("scared"),
+                    ReorientAction(max_attempts=5),
+                ],
+            ),
+            # Branch 3: Navigate to charger
+            Sequence(
+                name="go_to_charger_navigate",
+                memory=True,
+                children=[
+                    SetExpressionAction("neutral"),
+                    NavigateToLandmarkAction(target_type="charging_station", timeout=45.0),
+                    SetExpressionAction("sleepy"),
+                ],
+            ),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("go_to_landmark")
+def create_go_to_landmark_tree() -> py_trees.behaviour.Behaviour:
+    """Navigate to a specific landmark (generic)."""
+    return Selector(
+        name="go_to_landmark",
+        memory=False,
+        children=[
+            # Branch 1: Position lost - scan first
+            Sequence(
+                name="go_to_landmark_lost",
+                memory=True,
+                children=[
+                    TriggerActiveCondition("position_lost"),
+                    SetExpressionAction("alert"),
+                    ScanAction("full"),
+                ],
+            ),
+            # Branch 2: Navigate
+            Sequence(
+                name="go_to_landmark_navigate",
+                memory=True,
+                children=[
+                    SetExpressionAction("curious"),
+                    NavigateToLandmarkAction(target_type="landmark", timeout=30.0),
+                    SetExpressionAction("happy"),
+                ],
+            ),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("explore_unfamiliar")
+def create_explore_unfamiliar_tree() -> py_trees.behaviour.Behaviour:
+    """Explore areas with low familiarity."""
+    return Selector(
+        name="explore_unfamiliar",
+        memory=False,
+        children=[
+            # Branch 1: Found something interesting (person)
+            Sequence(
+                name="explore_unfamiliar_discovery",
+                memory=True,
+                children=[
+                    PersonDetectedCondition(familiar_only=False),
+                    SetExpressionAction("happy"),
+                    PlaySoundAction("greeting"),
+                    StopAction(),
+                ],
+            ),
+            # Branch 2: Position lost - reorient
+            Sequence(
+                name="explore_unfamiliar_lost",
+                memory=True,
+                children=[
+                    TriggerActiveCondition("position_lost"),
+                    SetExpressionAction("curious"),
+                    ScanAction("partial"),
+                ],
+            ),
+            # Branch 3: Navigate toward unfamiliar area
+            Sequence(
+                name="explore_unfamiliar_navigate",
+                memory=True,
+                children=[
+                    SetExpressionAction("curious"),
+                    PlaySoundAction("curious"),
+                    NavigateToLandmarkAction(target_type="unfamiliar_zone", timeout=30.0),
+                    ScanAction("partial"),
+                ],
+            ),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("patrol")
+def create_patrol_tree() -> py_trees.behaviour.Behaviour:
+    """Patrol between known safe landmarks."""
+    return Selector(
+        name="patrol",
+        memory=False,
+        children=[
+            # Branch 1: Danger detected - abort
+            Sequence(
+                name="patrol_danger",
+                memory=True,
+                children=[
+                    TriggerActiveCondition("in_danger_zone"),
+                    SetExpressionAction("alert"),
+                    StopAction(),
+                ],
+            ),
+            # Branch 2: Normal patrol
+            Sequence(
+                name="patrol_default",
+                memory=True,
+                children=[
+                    SetExpressionAction("neutral"),
+                    MoveAction("forward", speed=0.3, duration=3.0),
+                    ScanAction("quick"),
+                    TurnAction(angle=90.0, speed=0.3),
+                    MoveAction("forward", speed=0.3, duration=3.0),
+                    ScanAction("quick"),
+                    TurnAction(angle=90.0, speed=0.3),
+                ],
+            ),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("flee_danger")
+def create_flee_danger_tree() -> py_trees.behaviour.Behaviour:
+    """Emergency escape from dangerous zone."""
+    return Sequence(
+        name="flee_danger",
+        memory=True,
+        children=[
+            SetExpressionAction("scared"),
+            PlaySoundAction("alert"),
+            MoveTowardSafetyAction(retreat_duration=1.5, retreat_speed=0.6),
+            ScanAction("quick"),
+            SetExpressionAction("alert"),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("retreat_to_safe")
+def create_retreat_to_safe_tree() -> py_trees.behaviour.Behaviour:
+    """Retreat to a known safe zone."""
+    return Selector(
+        name="retreat_to_safe",
+        memory=False,
+        children=[
+            # Branch 1: Already in safe zone
+            Sequence(
+                name="retreat_to_safe_arrived",
+                memory=True,
+                children=[
+                    TriggerActiveCondition("in_safe_zone"),
+                    SetExpressionAction("neutral"),
+                    StopAction(),
+                ],
+            ),
+            # Branch 2: Navigate to safety
+            Sequence(
+                name="retreat_to_safe_navigate",
+                memory=True,
+                children=[
+                    SetExpressionAction("scared"),
+                    NavigateToLandmarkAction(target_type="safe_zone", timeout=20.0),
+                    SetExpressionAction("neutral"),
+                    PlaySoundAction("happy"),
+                ],
+            ),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("reorient")
+def create_reorient_tree() -> py_trees.behaviour.Behaviour:
+    """Attempt to regain position awareness."""
+    return Sequence(
+        name="reorient",
+        memory=True,
+        children=[
+            SetExpressionAction("curious"),
+            StopAction(),
+            ReorientAction(max_attempts=4, scan_duration=2.0),
+            SetExpressionAction("neutral"),
         ],
     )

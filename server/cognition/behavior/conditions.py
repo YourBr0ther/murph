@@ -193,3 +193,212 @@ class NotCondition(py_trees.decorators.Decorator):
         elif self.decorated.status == Status.FAILURE:
             return Status.SUCCESS
         return Status.RUNNING
+
+
+# --- Spatial Navigation Conditions ---
+
+
+class AtLandmarkCondition(ConditionNode):
+    """
+    Check if robot is at a specific landmark type or ID.
+
+    Args:
+        landmark_type: Type of landmark to check for (e.g., "home_base", "charging_station")
+        landmark_id: Specific landmark ID (overrides type check)
+    """
+
+    def __init__(
+        self,
+        landmark_type: str | None = None,
+        landmark_id: str | None = None,
+    ) -> None:
+        name = f"AtLandmark({landmark_type or landmark_id or 'any'})"
+        super().__init__(name)
+        self._landmark_type = landmark_type
+        self._landmark_id = landmark_id
+
+    def setup(self, **kwargs: Any) -> None:
+        """Setup blackboard access for spatial map."""
+        super().setup(**kwargs)
+        self.blackboard.register_key(
+            key="spatial_map",
+            access=py_trees.common.Access.READ
+        )
+
+    def _evaluate(self) -> Status:
+        try:
+            spatial_map = self.blackboard.spatial_map
+            if spatial_map is None or not spatial_map.is_position_known:
+                return Status.FAILURE
+
+            current_id = spatial_map.current_landmark_id
+
+            # Check specific landmark ID
+            if self._landmark_id is not None:
+                return Status.SUCCESS if current_id == self._landmark_id else Status.FAILURE
+
+            # Check landmark type
+            if self._landmark_type is not None:
+                current_landmark = spatial_map.current_landmark
+                if current_landmark is None:
+                    return Status.FAILURE
+                if self._landmark_type == "home_base":
+                    return Status.SUCCESS if spatial_map.is_at_home else Status.FAILURE
+                return (
+                    Status.SUCCESS
+                    if current_landmark.landmark_type == self._landmark_type
+                    else Status.FAILURE
+                )
+
+            # If no type or ID specified, just check if at any landmark
+            return Status.SUCCESS if current_id is not None else Status.FAILURE
+
+        except (KeyError, AttributeError):
+            return Status.FAILURE
+
+
+class ZoneSafetyCondition(ConditionNode):
+    """
+    Check if current zone meets a safety threshold.
+
+    Args:
+        min_safety: Minimum safety score required (0.0-1.0, default 0.7)
+        check_dangerous: If True, succeeds when zone IS dangerous (safety < 0.3)
+    """
+
+    def __init__(
+        self,
+        min_safety: float = 0.7,
+        check_dangerous: bool = False,
+    ) -> None:
+        if check_dangerous:
+            name = "ZoneIsDangerous"
+        else:
+            name = f"ZoneSafety(>={min_safety:.1f})"
+        super().__init__(name)
+        self._min_safety = min_safety
+        self._check_dangerous = check_dangerous
+
+    def setup(self, **kwargs: Any) -> None:
+        """Setup blackboard access for spatial map."""
+        super().setup(**kwargs)
+        self.blackboard.register_key(
+            key="spatial_map",
+            access=py_trees.common.Access.READ
+        )
+
+    def _evaluate(self) -> Status:
+        try:
+            spatial_map = self.blackboard.spatial_map
+            if spatial_map is None:
+                return Status.FAILURE
+
+            current_zone = spatial_map.current_zone
+            if current_zone is None:
+                # No zone info - assume neutral
+                return Status.FAILURE
+
+            if self._check_dangerous:
+                return Status.SUCCESS if current_zone.is_dangerous else Status.FAILURE
+
+            return Status.SUCCESS if current_zone.safety_score >= self._min_safety else Status.FAILURE
+
+        except (KeyError, AttributeError):
+            return Status.FAILURE
+
+
+class HasPathCondition(ConditionNode):
+    """
+    Check if a path exists to a target landmark type.
+
+    Args:
+        target_type: Type of landmark to find path to
+                    ("home_base", "charging_station", "safe_zone", etc.)
+    """
+
+    def __init__(self, target_type: str) -> None:
+        name = f"HasPathTo({target_type})"
+        super().__init__(name)
+        self._target_type = target_type
+
+    def setup(self, **kwargs: Any) -> None:
+        """Setup blackboard access for spatial map."""
+        super().setup(**kwargs)
+        self.blackboard.register_key(
+            key="spatial_map",
+            access=py_trees.common.Access.READ
+        )
+
+    def _evaluate(self) -> Status:
+        try:
+            spatial_map = self.blackboard.spatial_map
+            if spatial_map is None or not spatial_map.is_position_known:
+                return Status.FAILURE
+
+            has_path = spatial_map.has_path_to(self._target_type)
+            return Status.SUCCESS if has_path else Status.FAILURE
+
+        except (KeyError, AttributeError):
+            return Status.FAILURE
+
+
+class HasUnexploredZonesCondition(ConditionNode):
+    """
+    Check if there are unexplored/unfamiliar zones in the map.
+
+    Args:
+        familiarity_threshold: Maximum familiarity to consider unexplored (default 0.5)
+    """
+
+    def __init__(self, familiarity_threshold: float = 0.5) -> None:
+        name = f"HasUnexploredZones(<{familiarity_threshold:.1f})"
+        super().__init__(name)
+        self._threshold = familiarity_threshold
+
+    def setup(self, **kwargs: Any) -> None:
+        """Setup blackboard access for spatial map."""
+        super().setup(**kwargs)
+        self.blackboard.register_key(
+            key="spatial_map",
+            access=py_trees.common.Access.READ
+        )
+
+    def _evaluate(self) -> Status:
+        try:
+            spatial_map = self.blackboard.spatial_map
+            if spatial_map is None:
+                return Status.FAILURE
+
+            has_unfamiliar = spatial_map.has_unfamiliar_zones(self._threshold)
+            return Status.SUCCESS if has_unfamiliar else Status.FAILURE
+
+        except (KeyError, AttributeError):
+            return Status.FAILURE
+
+
+class PositionKnownCondition(ConditionNode):
+    """
+    Check if the robot's position is known (at a recognized landmark).
+    """
+
+    def __init__(self) -> None:
+        super().__init__("PositionKnown")
+
+    def setup(self, **kwargs: Any) -> None:
+        """Setup blackboard access for spatial map."""
+        super().setup(**kwargs)
+        self.blackboard.register_key(
+            key="spatial_map",
+            access=py_trees.common.Access.READ
+        )
+
+    def _evaluate(self) -> Status:
+        try:
+            spatial_map = self.blackboard.spatial_map
+            if spatial_map is None:
+                return Status.FAILURE
+
+            return Status.SUCCESS if spatial_map.is_position_known else Status.FAILURE
+
+        except (KeyError, AttributeError):
+            return Status.FAILURE

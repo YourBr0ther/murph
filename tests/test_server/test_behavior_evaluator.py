@@ -753,7 +753,8 @@ class TestScoringIntegration:
 
         best = evaluator.select_best()
 
-        assert best.behavior.name in ["rest", "sleep"]
+        # go_to_charger is now a valid energy recovery behavior
+        assert best.behavior.name in ["rest", "sleep", "go_to_charger"]
 
     def test_bored_robot_selects_explore(self):
         """When curiosity is low, exploration behaviors should score higher."""
@@ -794,7 +795,11 @@ class TestScoringIntegration:
         best = evaluator.select_best()
 
         # Safety behaviors have high base values and should win
-        assert best.behavior.name in ["retreat", "hide", "scan", "approach_trusted"]
+        # Navigation safety behaviors (flee_danger, retreat_to_safe) are also valid
+        assert best.behavior.name in [
+            "retreat", "hide", "scan", "approach_trusted",
+            "flee_danger", "retreat_to_safe", "reorient"
+        ]
 
     def test_opportunity_swings_decision(self):
         """Opportunity bonus should swing decision to appropriate behavior."""
