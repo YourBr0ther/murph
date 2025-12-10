@@ -258,59 +258,131 @@ def create_approach_tree() -> py_trees.behaviour.Behaviour:
 
 @BehaviorTreeFactory.register_tree("nuzzle")
 def create_nuzzle_tree() -> py_trees.behaviour.Behaviour:
-    """Nuzzle tree: Express love and get close."""
+    """Nuzzle tree: Express love with gentle rhythmic nuzzling movements."""
     return Sequence(
         name="nuzzle",
         memory=True,
         children=[
+            # Approach with love
             SetExpressionAction("love"),
             PlaySoundAction("affection"),
-            MoveAction("forward", speed=0.15, duration=1.5),
-            WaitAction(3.0),
+            MoveAction("forward", speed=0.15, duration=1.0),
+            # Rhythmic nuzzling motions (gentle forward-back)
+            MoveAction("forward", speed=0.1, duration=0.3),
+            MoveAction("backward", speed=0.1, duration=0.2),
+            PlaySoundAction("happy"),
+            MoveAction("forward", speed=0.1, duration=0.3),
+            MoveAction("backward", speed=0.1, duration=0.2),
+            # Side nuzzle (slight turns)
+            TurnAction(angle=15.0, speed=0.2),
+            MoveAction("forward", speed=0.1, duration=0.2),
+            TurnAction(angle=-30.0, speed=0.2),
+            MoveAction("forward", speed=0.1, duration=0.2),
+            TurnAction(angle=15.0, speed=0.2),
+            # Final affection
+            PlaySoundAction("affection"),
+            SetExpressionAction("happy"),
+            WaitAction(1.0),
         ],
     )
 
 
 @BehaviorTreeFactory.register_tree("be_petted")
 def create_be_petted_tree() -> py_trees.behaviour.Behaviour:
-    """Be petted tree: Show contentment while being petted."""
+    """Be petted tree: Show contentment with leaning and periodic happy sounds."""
     return Sequence(
         name="be_petted",
         memory=True,
         children=[
+            # Initial happy response
             SetExpressionAction("happy"),
             PlaySoundAction("happy"),
-            WaitAction(10.0),
+            # Lean into the petting (slight forward movement)
+            MoveAction("forward", speed=0.1, duration=0.3),
+            WaitAction(2.0),
+            # Blissful expression
+            SetExpressionAction("love"),
+            PlaySoundAction("affection"),
+            WaitAction(2.5),
+            # Another lean
+            MoveAction("forward", speed=0.08, duration=0.2),
+            PlaySoundAction("happy"),
+            WaitAction(2.5),
+            # Contentment
+            SetExpressionAction("happy"),
+            PlaySoundAction("affection"),
+            WaitAction(2.0),
         ],
     )
 
 
 @BehaviorTreeFactory.register_tree("cuddle")
 def create_cuddle_tree() -> py_trees.behaviour.Behaviour:
-    """Cuddle tree: Stay still and enjoy affection."""
+    """Cuddle tree: Settle in and enjoy extended affection with gentle movements."""
     return Sequence(
         name="cuddle",
         memory=True,
         children=[
+            # Initial settling
             SetExpressionAction("love"),
             PlaySoundAction("affection"),
-            WaitAction(15.0),
+            # Gentle settling movements (like getting comfortable)
+            TurnAction(angle=5.0, speed=0.1),
+            TurnAction(angle=-5.0, speed=0.1),
+            WaitAction(3.0),
+            # Periodic contentment sounds
+            PlaySoundAction("happy"),
+            WaitAction(4.0),
+            # Slight nuzzle motion
+            MoveAction("forward", speed=0.1, duration=0.2),
+            MoveAction("backward", speed=0.1, duration=0.2),
+            PlaySoundAction("affection"),
+            WaitAction(4.0),
+            # Final contentment
+            SetExpressionAction("happy"),
+            PlaySoundAction("happy"),
+            WaitAction(3.0),
         ],
     )
 
 
 @BehaviorTreeFactory.register_tree("request_attention")
 def create_request_attention_tree() -> py_trees.behaviour.Behaviour:
-    """Request attention tree: Make sounds to get noticed."""
-    return Sequence(
+    """Request attention tree: Get noticed with conditional excitement if person responds."""
+    return Selector(
         name="request_attention",
-        memory=True,
+        memory=False,
         children=[
-            SetExpressionAction("curious"),
-            PlaySoundAction("curious"),
-            MoveAction("forward", speed=0.2, duration=0.5),
-            MoveAction("backward", speed=0.2, duration=0.5),
-            PlaySoundAction("playful"),
+            # Branch 1: Person detected - express excitement!
+            Sequence(
+                name="request_attention_noticed",
+                memory=True,
+                children=[
+                    PersonDetectedCondition(familiar_only=False),
+                    SetExpressionAction("happy"),
+                    PlaySoundAction("happy"),
+                    MoveAction("forward", speed=0.3, duration=0.5),
+                    PlaySoundAction("greeting"),
+                ],
+            ),
+            # Branch 2: No person - try harder to get attention
+            Sequence(
+                name="request_attention_seeking",
+                memory=True,
+                children=[
+                    SetExpressionAction("curious"),
+                    PlaySoundAction("curious"),
+                    # Attention-getting movements
+                    MoveAction("forward", speed=0.25, duration=0.4),
+                    MoveAction("backward", speed=0.25, duration=0.4),
+                    PlaySoundAction("playful"),
+                    # Look around hoping to be noticed
+                    TurnAction(angle=30.0, speed=0.4),
+                    TurnAction(angle=-60.0, speed=0.4),
+                    TurnAction(angle=30.0, speed=0.4),
+                    PlaySoundAction("curious"),
+                ],
+            ),
         ],
     )
 
@@ -351,33 +423,54 @@ def create_chase_tree() -> py_trees.behaviour.Behaviour:
 
 @BehaviorTreeFactory.register_tree("bounce")
 def create_bounce_tree() -> py_trees.behaviour.Behaviour:
-    """Bounce tree: Quick back-and-forth movements."""
+    """Bounce tree: Energetic bouncing with directional variations."""
     return Sequence(
         name="bounce",
         memory=True,
         children=[
             SetExpressionAction("playful"),
             PlaySoundAction("happy"),
-            MoveAction("forward", speed=0.4, duration=0.3),
-            MoveAction("backward", speed=0.4, duration=0.3),
-            MoveAction("forward", speed=0.4, duration=0.3),
-            MoveAction("backward", speed=0.4, duration=0.3),
+            # Bounce 1: Forward-back
+            MoveAction("forward", speed=0.5, duration=0.25),
+            MoveAction("backward", speed=0.5, duration=0.25),
+            # Bounce 2: With slight turn
+            TurnAction(angle=30.0, speed=0.6),
+            MoveAction("forward", speed=0.5, duration=0.25),
+            MoveAction("backward", speed=0.5, duration=0.25),
+            # Bounce 3: Other direction
+            TurnAction(angle=-60.0, speed=0.6),
+            MoveAction("forward", speed=0.5, duration=0.25),
+            MoveAction("backward", speed=0.5, duration=0.25),
+            PlaySoundAction("playful"),
+            # Final spin for excitement
+            TurnAction(angle=180.0, speed=0.8),
+            SetExpressionAction("happy"),
         ],
     )
 
 
 @BehaviorTreeFactory.register_tree("pounce")
 def create_pounce_tree() -> py_trees.behaviour.Behaviour:
-    """Pounce tree: Pause, then quick forward burst."""
+    """Pounce tree: Stalk, wiggle, then burst forward like a cat."""
     return Sequence(
         name="pounce",
         memory=True,
         children=[
+            # Stalking phase - alert and focused
             SetExpressionAction("alert"),
-            WaitAction(1.0),
+            WaitAction(0.5),
+            # Wiggle side to side (like a cat preparing to pounce)
+            TurnAction(angle=10.0, speed=0.3),
+            TurnAction(angle=-20.0, speed=0.3),
+            TurnAction(angle=10.0, speed=0.3),
+            WaitAction(0.3),
+            # The pounce!
             SetExpressionAction("playful"),
             PlaySoundAction("playful"),
-            MoveAction("forward", speed=0.8, duration=0.5),
+            MoveAction("forward", speed=0.9, duration=0.4),
+            # Landing
+            StopAction(),
+            PlaySoundAction("happy"),
         ],
     )
 
@@ -431,28 +524,49 @@ def create_find_cozy_spot_tree() -> py_trees.behaviour.Behaviour:
 
 @BehaviorTreeFactory.register_tree("settle")
 def create_settle_tree() -> py_trees.behaviour.Behaviour:
-    """Settle tree: Get comfortable in place."""
+    """Settle tree: Circle like a dog before lying down, then settle with a sigh."""
     return Sequence(
         name="settle",
         memory=True,
         children=[
             SetExpressionAction("neutral"),
-            TurnAction(angle=15.0, speed=0.2),
-            TurnAction(angle=-15.0, speed=0.2),
-            WaitAction(5.0),
+            # Circling behavior (like dogs do before lying down)
+            TurnAction(angle=90.0, speed=0.25),
+            MoveAction("forward", speed=0.15, duration=0.3),
+            TurnAction(angle=90.0, speed=0.25),
+            MoveAction("forward", speed=0.15, duration=0.3),
+            TurnAction(angle=90.0, speed=0.25),
+            MoveAction("forward", speed=0.15, duration=0.3),
+            TurnAction(angle=90.0, speed=0.25),
+            # Settling adjustments
+            TurnAction(angle=10.0, speed=0.15),
+            TurnAction(angle=-10.0, speed=0.15),
+            # Final settle with sigh
+            SetExpressionAction("sleepy"),
+            PlaySoundAction("sigh"),
+            WaitAction(3.0),
         ],
     )
 
 
 @BehaviorTreeFactory.register_tree("adjust_position")
 def create_adjust_position_tree() -> py_trees.behaviour.Behaviour:
-    """Adjust position tree: Minor movement adjustment."""
+    """Adjust position tree: Naturalistic fidgeting with small movements and turns."""
     return Sequence(
         name="adjust_position",
         memory=True,
         children=[
-            MoveAction("forward", speed=0.1, duration=0.3),
-            MoveAction("backward", speed=0.1, duration=0.2),
+            # Small shuffle forward-back
+            MoveAction("forward", speed=0.1, duration=0.2),
+            MoveAction("backward", speed=0.1, duration=0.15),
+            # Slight turn adjustment
+            TurnAction(angle=8.0, speed=0.15),
+            WaitAction(0.3),
+            # Another small shuffle
+            MoveAction("left", speed=0.1, duration=0.15),
+            MoveAction("right", speed=0.1, duration=0.15),
+            # Settle
+            TurnAction(angle=-8.0, speed=0.15),
         ],
     )
 
@@ -476,17 +590,34 @@ def create_retreat_tree() -> py_trees.behaviour.Behaviour:
 
 @BehaviorTreeFactory.register_tree("hide")
 def create_hide_tree() -> py_trees.behaviour.Behaviour:
-    """Hide tree: Find cover and stay still."""
+    """Hide tree: Find cover, peek cautiously, then stay hidden with relief."""
     return Sequence(
         name="hide",
         memory=True,
         children=[
+            # Initial scare and retreat
             SetExpressionAction("scared"),
-            MoveAction("backward", speed=0.3, duration=1.0),
+            PlaySoundAction("alert"),
+            MoveAction("backward", speed=0.4, duration=1.0),
             TurnAction(angle=180.0, speed=0.5),
-            MoveAction("forward", speed=0.4, duration=2.0),
+            MoveAction("forward", speed=0.5, duration=2.0),
             StopAction(),
-            WaitAction(10.0),
+            # Hiding - cautious peek behavior
+            WaitAction(2.0),
+            SetExpressionAction("alert"),
+            ScanAction("quick"),
+            # Still scared, hunker down
+            SetExpressionAction("scared"),
+            WaitAction(3.0),
+            # Another cautious peek
+            TurnAction(angle=30.0, speed=0.2),
+            ScanAction("quick"),
+            TurnAction(angle=-30.0, speed=0.2),
+            WaitAction(2.0),
+            # Danger seems to have passed - relief
+            SetExpressionAction("neutral"),
+            PlaySoundAction("sigh"),
+            WaitAction(2.0),
         ],
     )
 
@@ -508,14 +639,28 @@ def create_approach_trusted_tree() -> py_trees.behaviour.Behaviour:
 
 @BehaviorTreeFactory.register_tree("scan")
 def create_scan_tree() -> py_trees.behaviour.Behaviour:
-    """Scan environment tree: Look around for threats."""
+    """Scan environment tree: Multi-directional scanning with threat assessment."""
     return Sequence(
         name="scan",
         memory=True,
         children=[
+            # Initial alert
             SetExpressionAction("alert"),
             StopAction(),
-            ScanAction("full"),
+            # Scan left
+            TurnAction(angle=-45.0, speed=0.3),
+            ScanAction("quick"),
+            WaitAction(0.5),
+            # Scan right
+            TurnAction(angle=90.0, speed=0.3),
+            ScanAction("quick"),
+            WaitAction(0.5),
+            # Scan center
+            TurnAction(angle=-45.0, speed=0.3),
+            ScanAction("partial"),
+            # Assessment complete - relax if nothing found
+            SetExpressionAction("curious"),
+            WaitAction(0.5),
             SetExpressionAction("neutral"),
         ],
     )
