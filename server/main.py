@@ -7,7 +7,10 @@ import asyncio
 import logging
 import signal
 
+import uvicorn
+
 from .orchestrator import CognitionOrchestrator
+from .monitoring import MonitoringServer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -15,12 +18,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger("murph.server")
 
+# Dashboard server configuration
+DASHBOARD_HOST = "0.0.0.0"
+DASHBOARD_PORT = 8081
+
 
 async def main() -> None:
     """Main entry point for the server brain."""
     logger.info("Starting Murph server brain...")
 
     orchestrator = CognitionOrchestrator()
+
+    # Create monitoring server for dashboard
+    monitoring = MonitoringServer(orchestrator)
 
     # Setup signal handlers for graceful shutdown
     loop = asyncio.get_running_loop()
@@ -33,11 +43,61 @@ async def main() -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, signal_handler)
 
+    # Configure uvicorn for the dashboard server
+    config = uvicorn.Config(
+        monitoring.app,
+        host=DASHBOARD_HOST,
+        port=DASHBOARD_PORT,
+        log_level="warning",  # Reduce uvicorn log noise
+    )
+    server = uvicorn.Server(config)
+
     try:
+        # Start orchestrator
         await orchestrator.start()
-        logger.info("Murph server brain started - waiting for shutdown signal")
+        logger.info("Murph server brain started")
+
+        # Start monitoring server and broadcast loop as background tasks
+        dashboard_task = asyncio.create_task(
+            server.serve(),
+            name="dashboard_server"
+        )
+        broadcast_task = asyncio.create_task(
+            monitoring.start_broadcast_loop(),
+            name="broadcast_loop"
+        )
+
+        logger.info(f"Dashboard available at http://{DASHBOARD_HOST}:{DASHBOARD_PORT}")
+        logger.info("Waiting for shutdown signal...")
+
+        # Wait for shutdown signal
         await shutdown_event.wait()
+
     finally:
+        logger.info("Shutting down...")
+
+        # Stop broadcast loop
+        await monitoring.stop_broadcast_loop()
+
+        # Signal uvicorn to shutdown
+        server.should_exit = True
+
+        # Cancel tasks
+        if 'dashboard_task' in dir():
+            dashboard_task.cancel()
+            try:
+                await dashboard_task
+            except asyncio.CancelledError:
+                pass
+
+        if 'broadcast_task' in dir():
+            broadcast_task.cancel()
+            try:
+                await broadcast_task
+            except asyncio.CancelledError:
+                pass
+
+        # Stop orchestrator
         await orchestrator.stop()
         logger.info("Murph server brain stopped")
 

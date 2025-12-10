@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Iterator
 
 import numpy as np
@@ -260,7 +261,7 @@ class WebcamVideoTrack:
         # Set timestamp (pts) based on elapsed time
         elapsed = time.time() - self._start_time
         video_frame.pts = int(elapsed * 90000)  # 90kHz timebase
-        video_frame.time_base = "1/90000"
+        video_frame.time_base = Fraction(1, 90000)
 
         return video_frame
 
@@ -420,7 +421,7 @@ class MockWebcamVideoTrack:
         video_frame = AVVideoFrame.from_ndarray(frame, format="rgb24")
         elapsed = time.time() - self._start_time
         video_frame.pts = int(elapsed * 90000)
-        video_frame.time_base = "1/90000"
+        video_frame.time_base = Fraction(1, 90000)
 
         return video_frame
 

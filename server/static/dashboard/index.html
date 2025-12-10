@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Murph Dashboard</title>
+    <link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Murph Dashboard</h1>
+            <div class="connection-status">
+                <div class="status-item">
+                    <span class="dot" id="server-dot"></span>
+                    <span>Server</span>
+                </div>
+                <div class="status-item">
+                    <span class="dot" id="pi-dot"></span>
+                    <span>Pi</span>
+                </div>
+                <div class="status-item">
+                    <span class="dot" id="ws-dot"></span>
+                    <span>Dashboard</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-card">
+                <div class="status-label">Current Behavior</div>
+                <div class="status-value" id="current-behavior">-</div>
+                <div class="status-detail">
+                    <span id="behavior-state">IDLE</span>
+                    <span id="behavior-time">0.0s</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <div class="status-label">Happiness</div>
+                <div class="happiness-gauge">
+                    <div class="gauge-fill" id="happiness-fill"></div>
+                    <span class="gauge-value" id="happiness-value">0</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <div class="status-label">Mood</div>
+                <div class="mood-badge" id="mood-badge">neutral</div>
+            </div>
+            <div class="status-card">
+                <div class="status-label">Most Urgent</div>
+                <div class="status-value urgent" id="urgent-need">-</div>
+            </div>
+        </div>
+
+        <main class="dashboard-grid">
+            <!-- Needs Panel -->
+            <section class="panel needs-panel">
+                <h2>Needs</h2>
+                <div class="needs-list" id="needs-list">
+                    <!-- Populated by JS -->
+                </div>
+            </section>
+
+            <!-- Behaviors Panel -->
+            <section class="panel behaviors-panel">
+                <h2>Behavior Selection</h2>
+                <div class="behavior-suggestions" id="behavior-suggestions">
+                    <!-- Populated by JS -->
+                </div>
+                <div class="behavior-trigger">
+                    <select id="behavior-select">
+                        <option value="">-- Select behavior --</option>
+                    </select>
+                    <button id="trigger-btn" class="btn btn-primary">Trigger</button>
+                </div>
+            </section>
+
+            <!-- Triggers Panel -->
+            <section class="panel triggers-panel">
+                <h2>Active Triggers</h2>
+                <div class="triggers-list" id="triggers-list">
+                    <!-- Populated by JS -->
+                </div>
+            </section>
+
+            <!-- Perception Panel -->
+            <section class="panel perception-panel">
+                <h2>Perception</h2>
+                <div class="perception-section">
+                    <h3>Person</h3>
+                    <div class="person-card" id="person-card">
+                        <div class="person-name" id="person-name">No person detected</div>
+                        <div class="person-details" id="person-details"></div>
+                    </div>
+                </div>
+                <div class="perception-section">
+                    <h3>Environment</h3>
+                    <div class="env-conditions" id="env-conditions">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+                <div class="perception-section">
+                    <h3>Physical</h3>
+                    <div class="physical-state" id="physical-state">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Behavior History Panel -->
+            <section class="panel history-panel">
+                <h2>Behavior History</h2>
+                <div class="history-list" id="history-list">
+                    <!-- Populated by JS -->
+                </div>
+            </section>
+
+            <!-- Context Panel -->
+            <section class="panel context-panel collapsible">
+                <h2 class="panel-toggle">
+                    Context
+                    <span class="toggle-icon">+</span>
+                </h2>
+                <div class="panel-content">
+                    <div class="context-section">
+                        <h3>Spatial</h3>
+                        <div id="spatial-info">-</div>
+                    </div>
+                    <div class="context-section">
+                        <h3>Loop Timing</h3>
+                        <div id="timing-info">-</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/dashboard.js"></script>
+</body>
+</html>

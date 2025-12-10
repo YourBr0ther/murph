@@ -26,16 +26,18 @@
 - [x] Expression system (types, registry, selector with needs integration) - 2024-12-10
 - [x] LLM provider tests (Ollama + NanoGPT providers) - 2024-12-10
 - [x] Speech recognition streaming (Pi -> Server STT via WebRTC) - 2024-12-10
+- [x] Dashboard/web UI for monitoring (real-time state, controls) - 2024-12-10
 
 ## In Progress
 - [ ] None (ready for next feature)
 
 ## Up Next
 - [ ] Additional behavior sets
-- [ ] Dashboard/web UI for monitoring
+- [ ] Memory consolidation / LLM context building
+- [ ] Voice command / conversation system
 
 ## Test Coverage
-- 955 tests passing (33+ new tests added 2024-12-10)
+- 985 tests passing (+30 new tests added 2024-12-10, 0 skipped)
 
 ## Blockers / Notes
 - None

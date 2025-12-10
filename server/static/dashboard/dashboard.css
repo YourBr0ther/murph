@@ -1,0 +1,583 @@
+/* Murph Dashboard Styles */
+
+:root {
+    --bg-dark: #0d1117;
+    --bg-panel: #161b22;
+    --bg-card: #21262d;
+    --bg-hover: #30363d;
+    --accent: #00d9ff;
+    --accent-hover: #00b8d9;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --success: #3fb950;
+    --danger: #f85149;
+    --warning: #d29922;
+    --info: #58a6ff;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text);
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--bg-card);
+    margin-bottom: 20px;
+}
+
+h1 {
+    color: var(--accent);
+    font-size: 1.8rem;
+}
+
+h2 {
+    color: var(--text);
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--bg-card);
+}
+
+h3 {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Connection Status */
+.connection-status {
+    display: flex;
+    gap: 15px;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: var(--bg-card);
+    border-radius: 16px;
+    font-size: 0.8rem;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--danger);
+    transition: all 0.3s ease;
+}
+
+.dot.connected {
+    background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+}
+
+/* Status Bar */
+.status-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.status-card {
+    background: var(--bg-panel);
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--bg-card);
+}
+
+.status-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.status-value {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.status-value.urgent {
+    color: var(--warning);
+}
+
+.status-detail {
+    display: flex;
+    gap: 12px;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* Happiness Gauge */
+.happiness-gauge {
+    position: relative;
+    height: 32px;
+    background: var(--bg-card);
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.happiness-gauge .gauge-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--danger), var(--warning), var(--success));
+    transition: width 0.5s ease;
+    border-radius: 16px;
+}
+
+.happiness-gauge .gauge-value {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* Mood Badge */
+.mood-badge {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 16px;
+    font-size: 1rem;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.mood-badge.happy { background: rgba(63, 185, 80, 0.2); color: var(--success); }
+.mood-badge.content { background: rgba(88, 166, 255, 0.2); color: var(--info); }
+.mood-badge.neutral { background: rgba(139, 148, 158, 0.2); color: var(--text-muted); }
+.mood-badge.uneasy { background: rgba(210, 153, 34, 0.2); color: var(--warning); }
+.mood-badge.distressed { background: rgba(248, 81, 73, 0.2); color: var(--danger); }
+
+/* Dashboard Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: auto auto auto;
+    gap: 15px;
+}
+
+/* Panels */
+.panel {
+    background: var(--bg-panel);
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--bg-card);
+}
+
+.needs-panel {
+    grid-row: span 2;
+}
+
+.behaviors-panel {
+    grid-column: span 2;
+}
+
+/* Needs List */
+.needs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.need-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.need-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.need-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.need-value {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.need-bar {
+    height: 8px;
+    background: var(--bg-card);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.need-bar .bar-fill {
+    height: 100%;
+    transition: width 0.3s ease, background-color 0.3s ease;
+    border-radius: 4px;
+}
+
+.need-bar .bar-fill.good { background: var(--success); }
+.need-bar .bar-fill.warning { background: var(--warning); }
+.need-bar .bar-fill.critical { background: var(--danger); }
+
+.need-bar .threshold-marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.need-controls {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.need-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 4px;
+    background: var(--bg-card);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+}
+
+.need-btn:hover {
+    background: var(--bg-hover);
+}
+
+/* Behavior Suggestions */
+.behavior-suggestions {
+    max-height: 250px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+}
+
+.behavior-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    margin-bottom: 4px;
+    background: var(--bg-card);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.behavior-item:hover {
+    background: var(--bg-hover);
+}
+
+.behavior-item.top {
+    border-left: 3px solid var(--accent);
+}
+
+.behavior-name {
+    font-weight: 500;
+}
+
+.behavior-score {
+    color: var(--accent);
+    font-family: monospace;
+}
+
+.behavior-breakdown {
+    display: none;
+    padding: 8px 12px;
+    margin-top: -4px;
+    margin-bottom: 4px;
+    background: var(--bg-dark);
+    border-radius: 0 0 6px 6px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.behavior-item:hover + .behavior-breakdown,
+.behavior-breakdown:hover {
+    display: block;
+}
+
+/* Behavior Trigger */
+.behavior-trigger {
+    display: flex;
+    gap: 8px;
+}
+
+.behavior-trigger select {
+    flex: 1;
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--bg-hover);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 0.85rem;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: var(--bg-dark);
+}
+
+.btn-primary:hover {
+    background: var(--accent-hover);
+}
+
+.btn-primary:disabled {
+    background: var(--bg-card);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+/* Triggers List */
+.triggers-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.trigger-tag {
+    padding: 4px 10px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.trigger-tag.active {
+    background: rgba(0, 217, 255, 0.15);
+    color: var(--accent);
+}
+
+/* Perception Panel */
+.perception-section {
+    margin-bottom: 16px;
+}
+
+.perception-section:last-child {
+    margin-bottom: 0;
+}
+
+.person-card {
+    background: var(--bg-card);
+    padding: 12px;
+    border-radius: 6px;
+}
+
+.person-name {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.person-details {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.env-conditions, .physical-state {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.condition-tag {
+    padding: 4px 10px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    font-size: 0.75rem;
+}
+
+.condition-tag.active {
+    background: rgba(210, 153, 34, 0.2);
+    color: var(--warning);
+}
+
+.condition-tag.danger {
+    background: rgba(248, 81, 73, 0.2);
+    color: var(--danger);
+}
+
+/* History Panel */
+.history-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--bg-card);
+    font-size: 0.8rem;
+}
+
+.history-item:last-child {
+    border-bottom: none;
+}
+
+.history-name {
+    font-weight: 500;
+}
+
+.history-status {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+}
+
+.history-status.completed {
+    background: rgba(63, 185, 80, 0.2);
+    color: var(--success);
+}
+
+.history-status.failed {
+    background: rgba(248, 81, 73, 0.2);
+    color: var(--danger);
+}
+
+.history-status.interrupted {
+    background: rgba(210, 153, 34, 0.2);
+    color: var(--warning);
+}
+
+.history-duration {
+    color: var(--text-muted);
+}
+
+/* Context Panel (Collapsible) */
+.collapsible .panel-content {
+    display: none;
+}
+
+.collapsible.expanded .panel-content {
+    display: block;
+}
+
+.panel-toggle {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.toggle-icon {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+}
+
+.collapsible.expanded .toggle-icon {
+    transform: rotate(45deg);
+}
+
+.context-section {
+    margin-bottom: 12px;
+    padding: 12px;
+    background: var(--bg-card);
+    border-radius: 6px;
+}
+
+.context-section:last-child {
+    margin-bottom: 0;
+}
+
+#timing-info, #spatial-info {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-family: monospace;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--bg-card);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--bg-hover);
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .behaviors-panel {
+        grid-column: span 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .needs-panel {
+        grid-row: span 1;
+    }
+
+    .status-bar {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    header {
+        flex-direction: column;
+        gap: 15px;
+    }
+}

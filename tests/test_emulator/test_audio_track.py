@@ -163,9 +163,10 @@ class TestMicrophoneAudioTrackVAD:
 
             # Stop voice and wait for silence threshold
             mic.simulate_silence()
-            # Need to wait longer than VAD_SILENCE_DURATION_MS (500ms)
-            await asyncio.sleep(0.6)
-            await track.recv()
+            # Need to call recv() multiple times over VAD_SILENCE_DURATION_MS (500ms)
+            # Each recv() sleeps ~20ms, so we need ~30 calls to exceed 500ms
+            for _ in range(30):
+                await track.recv()
             assert track.is_speaking is False
 
         except ImportError:

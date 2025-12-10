@@ -3,8 +3,13 @@ Murph - SQLAlchemy Models for Long-Term Memory
 Defines database schema for people, objects, events, and face embeddings.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
+
+
+def utc_now() -> datetime:
+    """Return current UTC time as timezone-aware datetime."""
+    return datetime.now(UTC)
 
 from sqlalchemy import (
     JSON,
@@ -43,8 +48,8 @@ class PersonModel(Base):
     sentiment: Mapped[float] = mapped_column(Float, default=0.0)  # -1 to 1
 
     # Timestamps
-    first_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    last_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    first_seen: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    last_seen: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     # Interaction tracking
     interaction_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -89,7 +94,7 @@ class FaceEmbeddingModel(Base):
     embedding: Mapped[bytes] = mapped_column(LargeBinary(512))
 
     # Metadata
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     quality_score: Mapped[float] = mapped_column(Float, default=1.0)  # Image quality
 
     # Relationship
@@ -112,8 +117,8 @@ class ObjectModel(Base):
     object_type: Mapped[str] = mapped_column(String(64))
 
     # Timestamps
-    first_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    last_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    first_seen: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    last_seen: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     # Tracking
     times_seen: Mapped[int] = mapped_column(Integer, default=1)
@@ -160,7 +165,7 @@ class EventModel(Base):
     event_type: Mapped[str] = mapped_column(String(64), index=True)
 
     # When it happened
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     # Participants and objects (stored as JSON arrays)
     participants: Mapped[list[str]] = mapped_column(JSON, default=list)
@@ -206,8 +211,8 @@ class SpatialLandmarkModel(Base):
     name: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     # Timestamps
-    first_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    last_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    first_seen: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    last_seen: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     # Usage tracking
     times_visited: Mapped[int] = mapped_column(Integer, default=1)
@@ -256,7 +261,7 @@ class SpatialZoneModel(Base):
     # Events that occurred here
     associated_events: Mapped[list[str]] = mapped_column(JSON, default=list)
 
-    last_visited: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_visited: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for SpatialZone.from_state()."""
@@ -296,7 +301,7 @@ class SpatialObservationModel(Base):
     relative_distance: Mapped[float] = mapped_column(Float)  # cm
 
     # Metadata
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     confidence: Mapped[float] = mapped_column(Float, default=0.5)
 
     def to_dict(self) -> dict[str, Any]:

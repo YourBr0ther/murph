@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections import deque
 from typing import TYPE_CHECKING, Any
 
 from shared.constants import (
@@ -139,6 +140,12 @@ class CognitionOrchestrator:
         self._last_perception_time: float = 0
         self._last_cognition_time: float = 0
         self._last_execution_time: float = 0
+
+        # Behavior history for dashboard (max 10 entries)
+        self._behavior_history: deque[dict[str, Any]] = deque(maxlen=10)
+
+        # Requested behavior (set via dashboard control)
+        self._requested_behavior: str | None = None
 
     @property
     def is_running(self) -> bool:
@@ -359,6 +366,24 @@ class CognitionOrchestrator:
 
                 # If no behavior running, select and start one
                 if not self._executor.is_running:
+                    # Check for dashboard-requested behavior first
+                    if self._requested_behavior:
+                        behavior = self._evaluator.registry.get(self._requested_behavior)
+                        self._requested_behavior = None
+                        if behavior:
+                            # Create a minimal ScoredBehavior for the requested behavior
+                            from .cognition.behavior.evaluator import ScoredBehavior
+                            best = ScoredBehavior(
+                                behavior=behavior,
+                                total_score=1.0,
+                                base_value=1.0,
+                                need_modifier=1.0,
+                                personality_modifier=1.0,
+                                opportunity_bonus=1.0,
+                            )
+                            self._start_behavior(best)
+                            continue
+
                     # Use async selection if reasoner available (may consult LLM)
                     if self._behavior_reasoner:
                         best = await self._evaluator.select_best_async(self._world_context)
@@ -430,12 +455,30 @@ class CognitionOrchestrator:
 
     def _handle_behavior_completion(self, result: ExecutionResult) -> None:
         """
-        Handle behavior completion - apply need effects.
+        Handle behavior completion - apply need effects and record history.
 
         Args:
             result: Execution result from the executor
         """
         behavior = self._evaluator.registry.get(result.behavior_name)
+
+        # Determine result status
+        if result.succeeded():
+            status = "completed"
+        elif result.failed():
+            status = "failed"
+        elif result.was_interrupted():
+            status = "interrupted"
+        else:
+            status = "unknown"
+
+        # Record in behavior history
+        self._behavior_history.append({
+            "name": result.behavior_name,
+            "duration": result.duration,
+            "status": status,
+            "timestamp": time.time(),
+        })
 
         if behavior and result.succeeded():
             # Apply need effects
@@ -581,6 +624,100 @@ class CognitionOrchestrator:
                 "last_execution": self._last_execution_time,
             },
         }
+
+    def get_extended_status(self) -> dict[str, Any]:
+        """
+        Get extended orchestrator status for dashboard.
+
+        Includes behavior suggestions and history in addition to basic status.
+        """
+        base_status = self.get_status()
+
+        # Add elapsed time for current behavior
+        if self._executor.is_running:
+            base_status["elapsed_time"] = self._executor.elapsed_time
+        else:
+            base_status["elapsed_time"] = 0.0
+
+        # Add behavior suggestions
+        base_status["behaviors"] = {
+            "suggested": self.get_behavior_suggestions(count=10),
+            "history": list(self._behavior_history),
+        }
+
+        # Add available behavior names for trigger dropdown
+        base_status["available_behaviors"] = [
+            b.name for b in self._evaluator.registry.get_all()
+        ]
+
+        return base_status
+
+    def get_behavior_suggestions(self, count: int = 10) -> list[dict[str, Any]]:
+        """
+        Get top behavior suggestions with scores.
+
+        Args:
+            count: Number of behaviors to return
+
+        Returns:
+            List of behavior dictionaries with name, score, and breakdown
+        """
+        scored = self._evaluator.select_top_n(count, self._world_context)
+        return [
+            {
+                "name": sb.behavior.name,
+                "score": round(sb.total_score, 3),
+                "breakdown": {
+                    "base": round(sb.base_value, 2),
+                    "need": round(sb.need_modifier, 2),
+                    "personality": round(sb.personality_modifier, 2),
+                    "opportunity": round(sb.opportunity_bonus, 2),
+                },
+            }
+            for sb in scored
+        ]
+
+    def adjust_need(self, name: str, delta: float) -> None:
+        """
+        Adjust a need value by delta (for dashboard control).
+
+        Args:
+            name: Name of the need (e.g., "energy", "curiosity")
+            delta: Amount to adjust (+/-)
+
+        Raises:
+            ValueError: If need name is invalid
+        """
+        need = self._needs_system.get_need(name)
+        if need is None:
+            raise ValueError(f"Unknown need: {name}")
+
+        if delta > 0:
+            self._needs_system.satisfy_need(name, delta)
+        else:
+            self._needs_system.deplete_need(name, abs(delta))
+
+        logger.info(f"Dashboard adjusted need '{name}' by {delta}")
+
+    async def request_behavior(self, behavior_name: str) -> None:
+        """
+        Request a specific behavior to be executed next (for dashboard control).
+
+        The behavior will be started on the next cognition cycle if no behavior
+        is currently running and the requested behavior exists.
+
+        Args:
+            behavior_name: Name of the behavior to trigger
+
+        Raises:
+            ValueError: If behavior name is invalid
+        """
+        behavior = self._evaluator.registry.get(behavior_name)
+        if behavior is None:
+            raise ValueError(f"Unknown behavior: {behavior_name}")
+
+        self._requested_behavior = behavior_name
+        logger.info(f"Dashboard requested behavior: {behavior_name}")
 
     def __str__(self) -> str:
         return (

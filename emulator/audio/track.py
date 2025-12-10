@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from fractions import Fraction
 from typing import TYPE_CHECKING
 
 from shared.constants import AUDIO_SAMPLE_RATE_STT, VAD_SILENCE_DURATION_MS
@@ -119,7 +120,7 @@ class MicrophoneAudioTrack:
         frame.planes[0].update(audio_data)
         frame.pts = self._timestamp
         frame.sample_rate = self._sample_rate
-        frame.time_base = f"1/{self._sample_rate}"
+        frame.time_base = Fraction(1, self._sample_rate)
 
         self._timestamp += self.SAMPLES_PER_FRAME
 
