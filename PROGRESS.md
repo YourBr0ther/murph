@@ -30,15 +30,16 @@
 - [x] Voice command system (wake word, keyword parsing, LLM fallback) - 2024-12-10
 - [x] Memory consolidation system (event summaries, relationships, reflections) - 2024-12-10
 - [x] Enhanced behavior trees (richer implementations for 10 minimal trees) - 2024-12-10
+- [x] Additional behavior sets (time-based, personality, reactive - 22 behaviors) - 2024-12-10
 
 ## In Progress
 - [ ] None (ready for next feature)
 
 ## Up Next
-- [ ] Additional behavior sets
+- [ ] Hardware testing with real Pi
 
 ## Test Coverage
-- 1052 tests passing (0 skipped)
+- 1078 tests passing (0 skipped)
 
 ## Blockers / Notes
 - None

@@ -31,6 +31,10 @@ class WorldContext:
         recent_bump: Whether a recent collision occurred
         time_since_last_interaction: Seconds since last human interaction
         current_behavior: Currently executing behavior name
+        current_hour: Current hour (0-23) for time-based behaviors
+        time_period: Current time period (morning/midday/evening/night)
+        person_detected_previous: Previous person_detected state for transition detection
+        was_falling: Previous falling state for dropped detection
         active_triggers: Explicitly set trigger conditions
     """
 
@@ -58,6 +62,14 @@ class WorldContext:
     # Time context
     time_since_last_interaction: float = 0.0
     current_behavior: str | None = None
+
+    # Time of day context (for time-based behaviors)
+    current_hour: int = 12  # 0-23
+    time_period: str = "midday"  # morning, midday, evening, night
+
+    # State transition tracking (for reactive behaviors)
+    person_detected_previous: bool = False  # For detecting person_left
+    was_falling: bool = False  # For detecting dropped (fall -> bump)
 
     # Speech recognition
     last_heard_text: str | None = None
@@ -134,6 +146,19 @@ class WorldContext:
             # Time-based triggers
             "lonely": self.time_since_last_interaction > 300,  # 5 minutes
             "very_lonely": self.time_since_last_interaction > 600,  # 10 minutes
+            # Time of day triggers
+            "is_morning": self.time_period == "morning",
+            "is_midday": self.time_period == "midday",
+            "is_evening": self.time_period == "evening",
+            "is_night": self.time_period == "night",
+            # Reactive behavior triggers (state transitions)
+            "person_left": (
+                self.person_detected_previous and not self.person_detected
+            ),
+            "dropped": self.was_falling and self.recent_bump,
+            "touched_unexpected": (
+                self.is_being_petted and not self.person_detected
+            ),
             # Speech triggers
             "heard_speech": self.time_since_last_speech < 5.0,  # Recent speech
             "heard_speech_recent": self.time_since_last_speech < 2.0,  # Very recent
@@ -199,6 +224,35 @@ class WorldContext:
         """Clear all LLM-derived triggers."""
         self.llm_triggers.clear()
 
+    def update_time_context(self, hour: int) -> None:
+        """
+        Update time of day context from current hour.
+
+        Args:
+            hour: Current hour (0-23)
+        """
+        self.current_hour = hour
+        if 6 <= hour < 11:
+            self.time_period = "morning"
+        elif 11 <= hour < 17:
+            self.time_period = "midday"
+        elif 17 <= hour < 21:
+            self.time_period = "evening"
+        else:
+            self.time_period = "night"
+
+    def update_transition_state(self, is_falling: bool) -> None:
+        """
+        Update state transition tracking for reactive behaviors.
+
+        Call this before updating person_detected to track transitions.
+
+        Args:
+            is_falling: Whether robot is currently falling
+        """
+        self.person_detected_previous = self.person_detected
+        self.was_falling = is_falling
+
     def get_active_triggers(self) -> list[str]:
         """Get list of all currently active triggers (explicit, LLM, and computed)."""
         active = list(self.active_triggers)
@@ -210,6 +264,10 @@ class WorldContext:
             "person_detected", "unknown_object", "has_objects", "being_held",
             "being_petted", "recent_bump", "low_light", "loud_environment",
             "near_edge", "near_charger", "lonely", "very_lonely",
+            # Time of day triggers
+            "is_morning", "is_midday", "is_evening", "is_night",
+            # Reactive behavior triggers
+            "person_left", "dropped", "touched_unexpected",
             # Speech triggers
             "heard_speech", "heard_speech_recent", "addressed_by_name",
             "voice_command_pending",
@@ -248,6 +306,10 @@ class WorldContext:
             "recent_bump": self.recent_bump,
             "time_since_last_interaction": self.time_since_last_interaction,
             "current_behavior": self.current_behavior,
+            "current_hour": self.current_hour,
+            "time_period": self.time_period,
+            "person_detected_previous": self.person_detected_previous,
+            "was_falling": self.was_falling,
             "last_heard_text": self.last_heard_text,
             "time_since_last_speech": self.time_since_last_speech,
             "remembered_person_name": self.remembered_person_name,
@@ -288,6 +350,10 @@ class WorldContext:
             recent_bump=state.get("recent_bump", False),
             time_since_last_interaction=state.get("time_since_last_interaction", 0.0),
             current_behavior=state.get("current_behavior"),
+            current_hour=state.get("current_hour", 12),
+            time_period=state.get("time_period", "midday"),
+            person_detected_previous=state.get("person_detected_previous", False),
+            was_falling=state.get("was_falling", False),
             last_heard_text=state.get("last_heard_text"),
             time_since_last_speech=state.get("time_since_last_speech", float("inf")),
             remembered_person_name=state.get("remembered_person_name"),

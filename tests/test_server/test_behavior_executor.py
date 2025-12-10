@@ -193,7 +193,8 @@ class TestBehaviorTreeFactory:
     def test_available_trees_count(self):
         """Test that we have trees for all behaviors."""
         trees = BehaviorTreeFactory.available_trees()
-        assert len(trees) == 38  # All default behaviors + loneliness + navigation behaviors
+        # 38 original + 22 new (time-based, personality, reactive)
+        assert len(trees) == 60
 
 
 class TestBehaviorTreeExecutor:

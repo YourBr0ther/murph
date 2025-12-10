@@ -63,7 +63,8 @@ class TestLonelinessBehaviors:
         registry = BehaviorRegistry()
         loneliness_behaviors = registry.get_by_tag("loneliness")
 
-        assert len(loneliness_behaviors) == 4
+        # 4 original + 1 new (person_left_sad)
+        assert len(loneliness_behaviors) == 5
 
         for behavior in loneliness_behaviors:
             assert "social" in behavior.driven_by_needs or "affection" in behavior.driven_by_needs

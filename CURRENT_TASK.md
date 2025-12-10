@@ -3,92 +3,60 @@
 ## Status: Ready for Next Feature
 
 ## Previous Task Completed
-Enhanced Behavior Trees - 2024-12-10
+Additional Behavior Sets - 2024-12-10
 
 ## Next Feature Options (from PROGRESS.md)
-1. Additional behavior sets
+1. Hardware testing with real Pi
 
 ## Notes
-Completed enhanced behavior trees implementation:
+Completed additional behavior sets implementation:
 
-### Behaviors Enhanced (10 total)
-1. `bounce` - Added turns and spin for variety
-2. `pounce` - Added stalking wiggle phase (cat-like)
-3. `cuddle` - Added settling movements and periodic sounds
-4. `be_petted` - Added leaning motion and periodic happy sounds
-5. `nuzzle` - Added rhythmic nuzzling movements
-6. `settle` - Added circling behavior (like dogs before lying down)
-7. `adjust_position` - Added naturalistic fidgeting
-8. `hide` - Added peeking behavior with cautious scans
-9. `scan` - Added multi-directional scanning with turns
-10. `request_attention` - Added conditional excitement if person detected
+### Behaviors Added (22 total)
 
-### Implementation Patterns Used
-- Rhythmic movements (repeated small forward/back)
-- Expression transitions during behavior
-- Sound punctuation at key moments
-- Conditional branches (Selector) for context-aware responses
+#### Time-Based Routines (8)
+1. `wake_up` - Morning wake up with stretching and alertness
+2. `morning_stretch` - Cat-like morning stretch routine
+3. `energetic_start` - Energetic morning burst of activity
+4. `midday_activity` - Active midday exploration and play
+5. `afternoon_rest` - Relaxed afternoon rest period
+6. `evening_settle` - Evening wind-down and settling routine
+7. `pre_sleep_yawn` - Pre-sleep yawn and drowsiness
+8. `night_stir` - Occasional night-time stirring
+
+#### Personality Expressions (8)
+1. `stretch` - Cat-like stretch expression (5% spontaneous)
+2. `yawn` - Yawning expression (4% spontaneous)
+3. `daydream` - Zoning out and daydreaming (3% spontaneous)
+4. `shake_off` - Dog-like shake off motion (2% spontaneous)
+5. `sneeze` - Cute sneeze reaction (1% spontaneous)
+6. `happy_wiggle` - Excited happy wiggle (3% spontaneous)
+7. `curious_tilt` - Head tilt showing curiosity (4% spontaneous)
+8. `contented_sigh` - Contented sigh of satisfaction (3% spontaneous)
+
+#### Reactive Behaviors (6)
+1. `dropped_recovery` - Recovery after being dropped/falling
+2. `loud_noise_reaction` - Startle and scan on loud noise
+3. `new_object_investigation` - Cautious investigation of new object
+4. `person_left_sad` - Sad reaction when person leaves view
+5. `touched_unexpectedly` - Startle on unexpected touch
+6. `picked_up_happy` - Happy reaction when picked up by familiar person
+
+### Architecture Changes
+- Added `time_preferences` and `spontaneous_probability` fields to Behavior
+- Added `current_hour`, `time_period`, `person_detected_previous`, `was_falling` to WorldContext
+- Added `_calculate_time_modifier()` and `_calculate_spontaneous_bonus()` to BehaviorEvaluator
+- Added new computed triggers: `is_morning`, `is_midday`, `is_evening`, `is_night`, `person_left`, `dropped`, `touched_unexpected`
 
 ### Files Modified
-- `server/cognition/behavior/trees.py` - Updated 10 tree functions
+- `server/cognition/behavior/behavior.py` - New fields
+- `server/cognition/behavior/context.py` - Time context and triggers
+- `server/cognition/behavior/evaluator.py` - New modifier methods
+- `server/cognition/behavior/behavior_registry.py` - 22 new behaviors
+- `server/cognition/behavior/trees.py` - 22 new behavior trees
+
+### Files Created
+- `tests/test_server/test_additional_behaviors.py` - 26 tests
 
 ### Test Results
-- 1052 tests passing
-- All behavior executor tests pass (42 tests)
-- All loneliness behavior tests pass (23 tests)
-
-## Previous Implementation Notes
-Memory consolidation system:
-
-### 1. Data Models
-- `server/storage/models.py` - Added InsightModel for persisting insights
-- `server/cognition/memory/memory_types.py` - Added InsightMemory dataclass
-
-### 2. Consolidation Package
-- `server/cognition/memory/consolidation/` - New package with:
-  - `config.py` - ConsolidationConfig with timing/threshold settings
-  - `event_summarizer.py` - Groups and summarizes event clusters via LLM
-  - `relationship_builder.py` - Generates relationship narratives for people
-  - `experience_reflector.py` - Reflects on behavior outcomes (probabilistic)
-  - `consolidator.py` - MemoryConsolidator orchestrating all services
-
-### 3. LLM Integration
-- `server/llm/prompts/consolidation_prompts.py` - Prompts for:
-  - Event summary generation
-  - Relationship narrative building
-  - Experience reflection
-  - Context summarization
-- `server/llm/services/context_builder.py` - Rich context building for LLM prompts
-
-### 4. Long-Term Memory Extensions
-- `server/cognition/memory/long_term_memory.py` - Added insight CRUD operations:
-  - save_insight(), get_insight(), get_insights_for_subject()
-  - get_recent_insights(), get_relevant_insights()
-  - decay_insight_relevance(), prune_stale_insights()
-
-### 5. Configuration
-- `server/llm/config.py` - Added consolidation settings:
-  - `consolidation_enabled` (default: True)
-  - `consolidation_tick_interval` (60s)
-  - `event_summarization_interval` (1 hour)
-  - `relationship_update_interval` (24 hours)
-  - `reflection_probability` (0.3)
-
-### 6. Orchestrator Integration
-- `server/orchestrator.py` - Integration points:
-  - Consolidation tick in cognition loop (~60s)
-  - on_behavior_complete() for experience reflection
-  - consolidate_session() on shutdown
-
-### Key Features
-| Feature | Description |
-|---------|-------------|
-| Event Summarization | Clusters events by type/participant, generates summaries hourly |
-| Relationship Building | Tracks relationship trajectory, generates narratives daily |
-| Experience Reflection | 30% chance to reflect on behavior outcomes |
-| Context Builder | Builds rich prompts from memory for LLM reasoning |
-| Insight Decay | Relevance scores decay over time, stale insights pruned |
-
-### Test Coverage
-- 25 new tests in `tests/test_server/test_consolidation/`
-- 1052 total tests passing
+- 1078 tests passing
+- 26 new tests for additional behaviors

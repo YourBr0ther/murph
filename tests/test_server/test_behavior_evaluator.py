@@ -766,7 +766,9 @@ class TestScoringIntegration:
 
         best = evaluator.select_best()
 
-        assert best.behavior.name in ["explore", "investigate", "wander", "observe"]
+        assert best.behavior.name in [
+            "explore", "investigate", "wander", "observe", "new_object_investigation"
+        ]
 
     def test_social_robot_greets_person(self):
         """When person is nearby and social need is moderate, social behaviors win."""

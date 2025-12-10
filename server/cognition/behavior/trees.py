@@ -1027,3 +1027,437 @@ def create_reorient_tree() -> py_trees.behaviour.Behaviour:
             SetExpressionAction("neutral"),
         ],
     )
+
+
+# ============================================
+# TIME-BASED ROUTINE BEHAVIORS
+# ============================================
+
+@BehaviorTreeFactory.register_tree("wake_up")
+def create_wake_up_tree() -> py_trees.behaviour.Behaviour:
+    """Morning wake up sequence with stretching and alertness."""
+    return Sequence(
+        name="wake_up",
+        memory=True,
+        children=[
+            SetExpressionAction("sleepy"),
+            WaitAction(1.0),
+            SetExpressionAction("neutral"),
+            MoveAction("forward", speed=0.1, duration=0.3),
+            MoveAction("backward", speed=0.1, duration=0.3),
+            SetExpressionAction("happy"),
+            PlaySoundAction("greeting"),
+            ScanAction("partial"),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("morning_stretch")
+def create_morning_stretch_tree() -> py_trees.behaviour.Behaviour:
+    """Cat-like morning stretch routine."""
+    return Sequence(
+        name="morning_stretch",
+        memory=True,
+        children=[
+            SetExpressionAction("sleepy"),
+            WaitAction(0.5),
+            MoveAction("forward", speed=0.15, duration=0.5),
+            WaitAction(1.0),
+            MoveAction("backward", speed=0.15, duration=0.5),
+            SetExpressionAction("happy"),
+            TurnAction(angle=30.0, speed=0.2),
+            TurnAction(angle=-60.0, speed=0.2),
+            TurnAction(angle=30.0, speed=0.2),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("energetic_start")
+def create_energetic_start_tree() -> py_trees.behaviour.Behaviour:
+    """Energetic morning burst of activity."""
+    return Sequence(
+        name="energetic_start",
+        memory=True,
+        children=[
+            SetExpressionAction("playful"),
+            PlaySoundAction("playful"),
+            MoveAction("forward", speed=0.5, duration=1.0),
+            TurnAction(angle=180.0, speed=0.5),
+            MoveAction("forward", speed=0.5, duration=1.0),
+            TurnAction(angle=90.0, speed=0.5),
+            MoveAction("forward", speed=0.4, duration=0.5),
+            SetExpressionAction("happy"),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("midday_activity")
+def create_midday_activity_tree() -> py_trees.behaviour.Behaviour:
+    """Active midday exploration and play."""
+    return Sequence(
+        name="midday_activity",
+        memory=True,
+        children=[
+            SetExpressionAction("curious"),
+            ScanAction("partial"),
+            MoveAction("forward", speed=0.4, duration=2.0),
+            TurnAction(angle=45.0, speed=0.3),
+            SetExpressionAction("playful"),
+            MoveAction("forward", speed=0.5, duration=1.5),
+            PlaySoundAction("playful"),
+            TurnAction(angle=-90.0, speed=0.3),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("afternoon_rest")
+def create_afternoon_rest_tree() -> py_trees.behaviour.Behaviour:
+    """Relaxed afternoon rest period."""
+    return Sequence(
+        name="afternoon_rest",
+        memory=True,
+        children=[
+            SetExpressionAction("neutral"),
+            StopAction(),
+            WaitAction(2.0),
+            SetExpressionAction("sleepy"),
+            WaitAction(5.0),
+            MoveAction("forward", speed=0.1, duration=0.2),
+            MoveAction("backward", speed=0.1, duration=0.2),
+            WaitAction(3.0),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("evening_settle")
+def create_evening_settle_tree() -> py_trees.behaviour.Behaviour:
+    """Evening wind-down and settling routine."""
+    return Sequence(
+        name="evening_settle",
+        memory=True,
+        children=[
+            SetExpressionAction("neutral"),
+            TurnAction(angle=360.0, speed=0.2),  # Circle like a dog
+            StopAction(),
+            SetExpressionAction("sleepy"),
+            WaitAction(3.0),
+            MoveAction("backward", speed=0.1, duration=0.3),
+            WaitAction(2.0),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("pre_sleep_yawn")
+def create_pre_sleep_yawn_tree() -> py_trees.behaviour.Behaviour:
+    """Pre-sleep yawn and drowsiness."""
+    return Sequence(
+        name="pre_sleep_yawn",
+        memory=True,
+        children=[
+            SetExpressionAction("sleepy"),
+            WaitAction(1.0),
+            PlaySoundAction("yawn"),
+            WaitAction(1.5),
+            SetExpressionAction("neutral"),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("night_stir")
+def create_night_stir_tree() -> py_trees.behaviour.Behaviour:
+    """Occasional night-time stirring."""
+    return Sequence(
+        name="night_stir",
+        memory=True,
+        children=[
+            SetExpressionAction("sleepy"),
+            MoveAction("forward", speed=0.05, duration=0.3),
+            MoveAction("backward", speed=0.05, duration=0.3),
+            TurnAction(angle=15.0, speed=0.1),
+            WaitAction(2.0),
+        ],
+    )
+
+
+# ============================================
+# PERSONALITY EXPRESSION BEHAVIORS
+# ============================================
+
+@BehaviorTreeFactory.register_tree("stretch")
+def create_stretch_tree() -> py_trees.behaviour.Behaviour:
+    """Cat-like stretch expression."""
+    return Sequence(
+        name="stretch",
+        memory=True,
+        children=[
+            SetExpressionAction("neutral"),
+            MoveAction("forward", speed=0.1, duration=0.8),
+            WaitAction(1.5),
+            MoveAction("backward", speed=0.1, duration=0.8),
+            SetExpressionAction("happy"),
+            WaitAction(0.5),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("yawn")
+def create_yawn_tree() -> py_trees.behaviour.Behaviour:
+    """Yawning expression."""
+    return Sequence(
+        name="yawn",
+        memory=True,
+        children=[
+            SetExpressionAction("sleepy"),
+            PlaySoundAction("yawn"),
+            WaitAction(2.0),
+            SetExpressionAction("neutral"),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("daydream")
+def create_daydream_tree() -> py_trees.behaviour.Behaviour:
+    """Zoning out and daydreaming."""
+    return Sequence(
+        name="daydream",
+        memory=True,
+        children=[
+            SetExpressionAction("neutral"),
+            WaitAction(2.0),
+            SetExpressionAction("curious"),
+            WaitAction(3.0),
+            TurnAction(angle=10.0, speed=0.1),
+            WaitAction(2.0),
+            SetExpressionAction("neutral"),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("shake_off")
+def create_shake_off_tree() -> py_trees.behaviour.Behaviour:
+    """Dog-like shake off motion."""
+    return Sequence(
+        name="shake_off",
+        memory=True,
+        children=[
+            SetExpressionAction("neutral"),
+            TurnAction(angle=20.0, speed=0.6),
+            TurnAction(angle=-40.0, speed=0.6),
+            TurnAction(angle=40.0, speed=0.6),
+            TurnAction(angle=-20.0, speed=0.6),
+            SetExpressionAction("happy"),
+            PlaySoundAction("happy"),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("sneeze")
+def create_sneeze_tree() -> py_trees.behaviour.Behaviour:
+    """Cute sneeze reaction."""
+    return Sequence(
+        name="sneeze",
+        memory=True,
+        children=[
+            SetExpressionAction("neutral"),
+            WaitAction(0.3),
+            SetExpressionAction("surprised"),
+            PlaySoundAction("sneeze"),
+            MoveAction("backward", speed=0.2, duration=0.2),
+            SetExpressionAction("happy"),
+            WaitAction(0.5),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("happy_wiggle")
+def create_happy_wiggle_tree() -> py_trees.behaviour.Behaviour:
+    """Excited happy wiggle."""
+    return Sequence(
+        name="happy_wiggle",
+        memory=True,
+        children=[
+            SetExpressionAction("happy"),
+            PlaySoundAction("happy"),
+            TurnAction(angle=15.0, speed=0.5),
+            TurnAction(angle=-30.0, speed=0.5),
+            TurnAction(angle=30.0, speed=0.5),
+            TurnAction(angle=-15.0, speed=0.5),
+            MoveAction("forward", speed=0.2, duration=0.3),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("curious_tilt")
+def create_curious_tilt_tree() -> py_trees.behaviour.Behaviour:
+    """Head tilt showing curiosity or confusion."""
+    return Sequence(
+        name="curious_tilt",
+        memory=True,
+        children=[
+            SetExpressionAction("curious"),
+            TurnAction(angle=25.0, speed=0.2),
+            WaitAction(1.5),
+            TurnAction(angle=-25.0, speed=0.2),
+            PlaySoundAction("curious"),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("contented_sigh")
+def create_contented_sigh_tree() -> py_trees.behaviour.Behaviour:
+    """Contented sigh of satisfaction."""
+    return Sequence(
+        name="contented_sigh",
+        memory=True,
+        children=[
+            SetExpressionAction("happy"),
+            WaitAction(1.0),
+            PlaySoundAction("content"),
+            SetExpressionAction("sleepy"),
+            WaitAction(1.5),
+            SetExpressionAction("neutral"),
+        ],
+    )
+
+
+# ============================================
+# REACTIVE BEHAVIORS
+# ============================================
+
+@BehaviorTreeFactory.register_tree("dropped_recovery")
+def create_dropped_recovery_tree() -> py_trees.behaviour.Behaviour:
+    """Recovery after being dropped or falling."""
+    return Sequence(
+        name="dropped_recovery",
+        memory=True,
+        children=[
+            SetExpressionAction("scared"),
+            PlaySoundAction("alert"),
+            StopAction(),
+            WaitAction(1.0),
+            SetExpressionAction("alert"),
+            ScanAction("quick"),
+            WaitAction(1.0),
+            SetExpressionAction("neutral"),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("loud_noise_reaction")
+def create_loud_noise_reaction_tree() -> py_trees.behaviour.Behaviour:
+    """Reaction to loud noise - startle and scan."""
+    return Sequence(
+        name="loud_noise_reaction",
+        memory=True,
+        children=[
+            SetExpressionAction("scared"),
+            StopAction(),
+            MoveAction("backward", speed=0.3, duration=0.3),
+            ScanAction("quick"),
+            WaitAction(1.0),
+            SetExpressionAction("alert"),
+            ScanAction("partial"),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("new_object_investigation")
+def create_new_object_investigation_tree() -> py_trees.behaviour.Behaviour:
+    """Cautious investigation of a new object."""
+    return Selector(
+        name="new_object_investigation",
+        memory=False,
+        children=[
+            # Branch 1: Too close - back up first
+            Sequence(
+                name="new_object_too_close",
+                memory=True,
+                children=[
+                    TriggerActiveCondition("near_edge"),
+                    SetExpressionAction("alert"),
+                    MoveAction("backward", speed=0.2, duration=0.5),
+                    ScanAction("quick"),
+                ],
+            ),
+            # Branch 2: Normal investigation
+            Sequence(
+                name="new_object_investigate",
+                memory=True,
+                children=[
+                    SetExpressionAction("curious"),
+                    PlaySoundAction("curious"),
+                    MoveAction("forward", speed=0.15, duration=1.0),
+                    ScanAction("quick"),
+                    WaitAction(1.0),
+                    MoveAction("forward", speed=0.1, duration=0.5),
+                    SetExpressionAction("happy"),
+                ],
+            ),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("person_left_sad")
+def create_person_left_sad_tree() -> py_trees.behaviour.Behaviour:
+    """Sad reaction when a person leaves the view."""
+    return Sequence(
+        name="person_left_sad",
+        memory=True,
+        children=[
+            SetExpressionAction("sad"),
+            PlaySoundAction("sad"),
+            ScanAction("partial"),  # Look around for them
+            WaitAction(2.0),
+            SetExpressionAction("neutral"),
+            WaitAction(1.0),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("touched_unexpectedly")
+def create_touched_unexpectedly_tree() -> py_trees.behaviour.Behaviour:
+    """Startle reaction to unexpected touch."""
+    return Sequence(
+        name="touched_unexpectedly",
+        memory=True,
+        children=[
+            SetExpressionAction("surprised"),
+            PlaySoundAction("surprised"),
+            MoveAction("backward", speed=0.3, duration=0.3),
+            ScanAction("quick"),
+            SetExpressionAction("alert"),
+        ],
+    )
+
+
+@BehaviorTreeFactory.register_tree("picked_up_happy")
+def create_picked_up_happy_tree() -> py_trees.behaviour.Behaviour:
+    """Happy reaction when picked up by familiar person."""
+    return Selector(
+        name="picked_up_happy",
+        memory=False,
+        children=[
+            # Branch 1: Familiar person - be happy
+            Sequence(
+                name="picked_up_familiar",
+                memory=True,
+                children=[
+                    TriggerActiveCondition("familiar_person"),
+                    SetExpressionAction("happy"),
+                    PlaySoundAction("happy"),
+                    WaitAction(2.0),
+                ],
+            ),
+            # Branch 2: Unknown person - be cautious
+            Sequence(
+                name="picked_up_stranger",
+                memory=True,
+                children=[
+                    SetExpressionAction("alert"),
+                    WaitAction(1.0),
+                    SetExpressionAction("neutral"),
+                    WaitAction(1.0),
+                ],
+            ),
+        ],
+    )

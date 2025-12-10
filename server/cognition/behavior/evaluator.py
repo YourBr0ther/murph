@@ -6,6 +6,7 @@ Utility AI behavior selection engine.
 from __future__ import annotations
 
 import logging
+import random
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -36,6 +37,8 @@ class ScoredBehavior:
     need_modifier: float
     personality_modifier: float
     opportunity_bonus: float
+    time_modifier: float = 1.0
+    spontaneous_bonus: float = 1.0
 
     def get_breakdown(self) -> dict[str, float]:
         """Return score breakdown for debugging."""
@@ -44,6 +47,8 @@ class ScoredBehavior:
             "need_modifier": self.need_modifier,
             "personality_modifier": self.personality_modifier,
             "opportunity_bonus": self.opportunity_bonus,
+            "time_modifier": self.time_modifier,
+            "spontaneous_bonus": self.spontaneous_bonus,
             "total_score": self.total_score,
         }
 
@@ -52,7 +57,8 @@ class ScoredBehavior:
             f"ScoredBehavior({self.behavior.name}, "
             f"score={self.total_score:.3f}, "
             f"base={self.base_value:.2f}*need={self.need_modifier:.2f}*"
-            f"pers={self.personality_modifier:.2f}*opp={self.opportunity_bonus:.2f})"
+            f"pers={self.personality_modifier:.2f}*opp={self.opportunity_bonus:.2f}*"
+            f"time={self.time_modifier:.2f}*spont={self.spontaneous_bonus:.2f})"
         )
 
 
@@ -65,12 +71,15 @@ class BehaviorEvaluator:
 
     The scoring formula is:
         score = base_value * need_modifier * personality_modifier * opportunity_bonus
+                * time_modifier * spontaneous_bonus
 
     Where:
         - base_value: Intrinsic desirability of the behavior (0.5-2.0)
         - need_modifier: How urgent the driving needs are (0.5-2.0)
         - personality_modifier: How personality affects preference (0.3-2.0)
         - opportunity_bonus: Context-appropriate bonuses (1.0-2.0)
+        - time_modifier: Time-of-day preference bonus (0.5-1.5)
+        - spontaneous_bonus: Random activation bonus for expressive behaviors (1.0-1.5)
     """
 
     def __init__(
@@ -128,10 +137,13 @@ class BehaviorEvaluator:
             need_modifier = self._calculate_need_modifier(behavior)
             personality_modifier = self._calculate_personality_modifier(behavior)
             opportunity_bonus = self._calculate_opportunity_bonus(behavior, context)
+            time_modifier = self._calculate_time_modifier(behavior, context)
+            spontaneous_bonus = self._calculate_spontaneous_bonus(behavior)
 
             # Calculate total score
             total_score = (
                 base_value * need_modifier * personality_modifier * opportunity_bonus
+                * time_modifier * spontaneous_bonus
             )
 
             scored.append(
@@ -142,6 +154,8 @@ class BehaviorEvaluator:
                     need_modifier=need_modifier,
                     personality_modifier=personality_modifier,
                     opportunity_bonus=opportunity_bonus,
+                    time_modifier=time_modifier,
+                    spontaneous_bonus=spontaneous_bonus,
                 )
             )
 
@@ -325,6 +339,60 @@ class BehaviorEvaluator:
         # Each active trigger adds 0.3, capped at 2.0
         bonus = 1.0 + (active_count * 0.3)
         return min(2.0, bonus)
+
+    def _calculate_time_modifier(
+        self,
+        behavior: Behavior,
+        context: WorldContext | None,
+    ) -> float:
+        """
+        Calculate time-of-day modifier based on behavior preferences.
+
+        Behaviors can specify preferences for certain times of day
+        (morning, midday, evening, night). The modifier boosts or
+        reduces the behavior's score based on current time.
+
+        Args:
+            behavior: The behavior to calculate modifier for
+            context: Current world context with time_period
+
+        Returns:
+            Time modifier in range 0.5-1.5
+        """
+        if context is None or not behavior.time_preferences:
+            return 1.0  # Neutral if no context or no preferences
+
+        # Get preference for current time period
+        preference = behavior.time_preferences.get(context.time_period, 1.0)
+
+        # Clamp to valid range (0.5-1.5)
+        return max(0.5, min(1.5, preference))
+
+    def _calculate_spontaneous_bonus(self, behavior: Behavior) -> float:
+        """
+        Calculate spontaneous activation bonus for expressive behaviors.
+
+        Behaviors with non-zero spontaneous_probability can randomly
+        receive a bonus, allowing them to occasionally activate even
+        when needs don't strongly drive them.
+
+        Args:
+            behavior: The behavior to calculate bonus for
+
+        Returns:
+            Spontaneous bonus (1.0 normally, 1.3-1.5 if randomly activated)
+        """
+        if behavior.spontaneous_probability <= 0:
+            return 1.0  # No spontaneous activation
+
+        # Roll for spontaneous activation
+        if random.random() < behavior.spontaneous_probability:
+            # Apply bonus (1.3-1.5 range based on probability)
+            # Higher probability behaviors get smaller bonus to balance
+            bonus = 1.5 - (behavior.spontaneous_probability * 0.4)
+            return max(1.3, bonus)
+
+        return 1.0
 
     def _is_on_cooldown(self, behavior: Behavior) -> bool:
         """

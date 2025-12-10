@@ -28,6 +28,8 @@ class Behavior:
         cooldown_seconds: Minimum time before behavior can repeat
         energy_cost: Energy need cost when executed
         tags: Tags for filtering/grouping behaviors
+        time_preferences: Time period preferences (morning/midday/evening/night -> multiplier)
+        spontaneous_probability: Chance of spontaneous activation (0.0-1.0)
     """
 
     name: str
@@ -41,6 +43,12 @@ class Behavior:
     cooldown_seconds: float = 0.0
     energy_cost: float = 0.0
     tags: list[str] = field(default_factory=list)
+    # Time-based behavior preferences (time_period -> multiplier)
+    # e.g., {"morning": 1.5, "night": 0.5} means preferred in morning
+    time_preferences: dict[str, float] = field(default_factory=dict)
+    # Probability of spontaneous activation (0.0-1.0)
+    # Allows personality expressions to occur randomly
+    spontaneous_probability: float = 0.0
 
     def __post_init__(self) -> None:
         """Validate and clamp values to valid ranges."""
@@ -48,6 +56,7 @@ class Behavior:
         self.duration_seconds = max(0.1, self.duration_seconds)
         self.cooldown_seconds = max(0.0, self.cooldown_seconds)
         self.energy_cost = max(0.0, self.energy_cost)
+        self.spontaneous_probability = max(0.0, min(1.0, self.spontaneous_probability))
 
     def satisfies_need(self, need_name: str) -> bool:
         """Check if this behavior satisfies a specific need."""
@@ -75,6 +84,8 @@ class Behavior:
             "cooldown_seconds": self.cooldown_seconds,
             "energy_cost": self.energy_cost,
             "tags": self.tags.copy(),
+            "time_preferences": self.time_preferences.copy(),
+            "spontaneous_probability": self.spontaneous_probability,
         }
 
     @classmethod
@@ -92,6 +103,8 @@ class Behavior:
             cooldown_seconds=state.get("cooldown_seconds", 0.0),
             energy_cost=state.get("energy_cost", 0.0),
             tags=state.get("tags", []),
+            time_preferences=state.get("time_preferences", {}),
+            spontaneous_probability=state.get("spontaneous_probability", 0.0),
         )
 
     def __str__(self) -> str:
