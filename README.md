@@ -52,6 +52,8 @@ poetry install
 poetry run python -m server.main
 ```
 
+Dashboard available at: `http://localhost:8081`
+
 ### Pi Setup
 
 ```bash
@@ -62,6 +64,15 @@ poetry install --with pi
 poetry run python -m pi.main
 ```
 
+### Emulator (No Hardware Required)
+
+```bash
+# Run the emulator instead of real Pi
+poetry run python -m emulator.app
+```
+
+Emulator UI at: `http://localhost:8080`
+
 ## Development
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed architecture documentation.
@@ -70,21 +81,13 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed architecture documentation.
 
 ```
 murph/
-├── pi/                 # Raspberry Pi client
 ├── server/             # Server brain
+├── pi/                 # Raspberry Pi client
+├── emulator/           # Virtual Pi for testing
 ├── shared/             # Shared code
-├── proto/              # Protocol Buffers
 ├── assets/             # Sounds, expressions
 └── tests/              # Test suite
 ```
-
-### Development Workflow
-
-1. Check `CURRENT_TASK.md` for current work
-2. Implement one feature at a time
-3. Write tests
-4. Commit with descriptive message
-5. Push to GitHub
 
 ## License
 
