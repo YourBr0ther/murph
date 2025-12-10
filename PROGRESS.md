@@ -22,6 +22,9 @@
 - [x] Emulator gap completion (physics, encoders, config, microphone) - 2024-12-09
 - [x] Emulator audio integration (wire up audio_enabled config) - 2024-12-09
 - [x] Speech synthesis (TTS via NanoGPT + SpeakAction) - 2024-12-10
+- [x] Communication layer tests (websocket_server + action_dispatcher) - 2024-12-10
+- [x] Expression system (types, registry, selector with needs integration) - 2024-12-10
+- [x] LLM provider tests (Ollama + NanoGPT providers) - 2024-12-10
 
 ## In Progress
 - [ ] None (ready for next feature)
@@ -30,6 +33,9 @@
 - [ ] Speech recognition streaming (Pi -> Server STT)
 - [ ] Additional behavior sets
 - [ ] Dashboard/web UI for monitoring
+
+## Test Coverage
+- 922 tests passing (150+ new tests added 2024-12-10)
 
 ## Blockers / Notes
 - None
