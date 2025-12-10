@@ -3,61 +3,53 @@
 ## Status: Ready for Next Feature
 
 ## Previous Task Completed
-Emulator Feature Complete - 2024-12-10
+Production Documentation - 2024-12-10
 
 ## Next Feature Options (from PROGRESS.md)
 1. Hardware testing with real Pi
 
 ## Notes
-Completed emulator production-ready implementation:
-
-### Bug Fixes
-1. Fixed `inject_voice_text()` method in virtual_pi.py
-   - Changed `self._ws` to `self._websocket`
-   - Changed `self._connected` to proper websocket check
-   - Changed `msg.to_json()` to `msg.serialize()`
-
-2. Fixed SIMULATED_TRANSCRIPTION message handling
-   - Added `SimulatedTranscription` to `RobotMessagePayload` union type
-   - Added case in `RobotMessage.from_dict()` for deserialization
-
-### New Features
-1. Added `simulate_falling()` method to VirtualPi
-   - Simulates freefall by setting low acceleration (< 0.3g)
-   - Auto-restores IMU to normal after duration
-   - Sends "falling" local trigger to server
-
-2. Added `create_simulated_transcription()` factory helper
-   - Creates SimulatedTranscription messages for testing voice commands
-
-3. Added falling API endpoint (`/api/falling`) in emulator app
-   - REST endpoint for triggering falling simulation
-   - WebSocket handler for UI command
-
-### UI Updates
-1. Static HTML (index.html) - Added falling button
-2. emulator.js - Added `simulateFalling()` function with visual feedback
-3. Fallback HTML - Added falling button and voice input panel
-
-### Test Coverage
-- 27 new tests in `test_virtual_pi_full.py`
-- Reflex simulation tests (pickup, bump, shake, falling, touch)
-- Command handling tests (motor, turn, expression, sound, scan, stop)
-- Voice injection tests
-- Message type tests
-- Reflex processor tests
-- State tests
-
-### Files Modified
-- `emulator/virtual_pi.py` - Bug fixes + simulate_falling
-- `emulator/app.py` - API endpoint + UI handler + fallback HTML
-- `emulator/static/index.html` - Falling button
-- `emulator/static/emulator.js` - simulateFalling function
-- `shared/messages/types.py` - SimulatedTranscription handling + factory
-- `shared/messages/__init__.py` - Export factory helper
+Completed comprehensive production documentation:
 
 ### Files Created
-- `tests/test_emulator/test_virtual_pi_full.py` - 27 comprehensive tests
+1. `docs/CONFIGURATION.md` - Complete environment variables reference
+   - 40+ environment variables with descriptions
+   - System constants reference
+   - Emulator configuration options
+   - Configuration validation notes
+   - Recommended configurations for dev/production
+
+2. `docs/API_REFERENCE.md` - Protocol and API documentation
+   - WebSocket message envelope format
+   - 14 message types with JSON examples
+   - Command messages (motor, turn, expression, sound, scan, stop, speech)
+   - Sensor messages (IMU, touch, motor state, local triggers)
+   - WebRTC signaling protocol
+   - Dashboard REST API endpoints
+   - Factory helper functions
+
+3. `docs/DEPLOYMENT.md` - Installation and deployment guide
+   - Server deployment (Ubuntu/macOS)
+   - Raspberry Pi deployment (OS setup, dependencies, interfaces)
+   - Emulator deployment
+   - Systemd service files for auto-start
+   - Network configuration (firewall, static IP, mDNS)
+   - Troubleshooting guide
+
+4. `docs/HARDWARE_SETUP.md` - Hardware assembly guide
+   - Bill of Materials with part numbers
+   - GPIO pin assignments table
+   - Wiring diagrams (I2C, motors, I2S audio, camera)
+   - Assembly instructions
+   - Hardware verification tests
+   - Calibration procedures
+
+5. `.env.example` - Configuration template
+   - All environment variables with defaults
+   - Organized by category with comments
+
+### Files Modified
+- `README.md` - Added documentation links table
 
 ### Test Results
-- 1105 tests passing (27 new)
+- 1105 tests passing (unchanged)

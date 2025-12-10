@@ -32,6 +32,7 @@
 - [x] Enhanced behavior trees (richer implementations for 10 minimal trees) - 2024-12-10
 - [x] Additional behavior sets (time-based, personality, reactive - 22 behaviors) - 2024-12-10
 - [x] Emulator feature complete (bug fixes, falling simulation, UI polish, tests) - 2024-12-10
+- [x] Production documentation (CONFIGURATION, API_REFERENCE, DEPLOYMENT, HARDWARE_SETUP) - 2024-12-10
 
 ## In Progress
 - [ ] None (ready for next feature)
