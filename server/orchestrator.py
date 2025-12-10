@@ -34,10 +34,12 @@ from .cognition.behavior.tree_executor import BehaviorTreeExecutor, ExecutionRes
 from .cognition.needs import NeedsSystem
 from .communication.action_dispatcher import ActionDispatcher
 from .communication.websocket_server import PiConnectionManager
+from .audio import AudioReceiver
 from .perception.sensor_processor import SensorProcessor
 from .video import FrameBuffer, VideoReceiver, VisionProcessor
 
 if TYPE_CHECKING:
+    from .llm.services.speech_service import SpeechService
     from .llm import BehaviorReasoner, LLMConfig, LLMService, VisionAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -101,11 +103,18 @@ class CognitionOrchestrator:
         # Action dispatch (bridges executor to Pi)
         self._action_dispatcher = ActionDispatcher(self._connection)
 
+        # Audio receiving and STT
+        self._audio_receiver = AudioReceiver(
+            on_transcription=self._on_transcription,
+        )
+        self._speech_service: SpeechService | None = None
+
         # Video streaming and vision processing
         self._frame_buffer = FrameBuffer()
         self._video_receiver = VideoReceiver(
             on_frame=self._frame_buffer.put,
             on_signaling=self._send_webrtc_signaling,
+            audio_receiver=self._audio_receiver,
         )
         self._vision_processor = VisionProcessor()
 
@@ -158,6 +167,10 @@ class CognitionOrchestrator:
         await self._connection.start()
         logger.info(f"WebSocket server started on ws://{self._host}:{self._port}")
 
+        # Start audio receiver (will receive tracks from video receiver)
+        await self._audio_receiver.start()
+        logger.info("Audio receiver started")
+
         # Start video receiver (waits for WebRTC offer from Pi)
         await self._video_receiver.start()
         logger.info("Video receiver started")
@@ -206,6 +219,14 @@ class CognitionOrchestrator:
             self._evaluator._reasoner = self._behavior_reasoner
             logger.info("LLM behavior reasoner initialized")
 
+        # Initialize speech service for STT (if API key available)
+        if self._llm_config.provider == "nanogpt":
+            from .llm.services.speech_service import SpeechService
+
+            self._speech_service = SpeechService(self._llm_config)
+            self._audio_receiver.set_speech_service(self._speech_service)
+            logger.info("Speech service initialized for STT")
+
         logger.info(f"LLM integration initialized (provider: {self._llm_config.provider})")
 
     async def stop(self) -> None:
@@ -236,6 +257,14 @@ class CognitionOrchestrator:
         if self._llm_service:
             await self._llm_service.close()
             logger.info("LLM service closed")
+
+        # Stop speech service
+        if self._speech_service:
+            await self._speech_service.close()
+            logger.info("Speech service closed")
+
+        # Stop audio receiver
+        await self._audio_receiver.stop()
 
         # Stop video receiver
         await self._video_receiver.stop()
@@ -324,6 +353,9 @@ class CognitionOrchestrator:
                     self._world_context.time_since_last_interaction += cycle_time
                 else:
                     self._world_context.time_since_last_interaction = 0
+
+                # Update time since last speech (always increases)
+                self._world_context.time_since_last_speech += cycle_time
 
                 # If no behavior running, select and start one
                 if not self._executor.is_running:
@@ -455,6 +487,19 @@ class CognitionOrchestrator:
             if current and current.interruptible:
                 logger.warning("Interrupting behavior due to falling trigger")
                 self._executor.interrupt()
+
+    def _on_transcription(self, text: str) -> None:
+        """
+        Callback for transcribed speech from AudioReceiver.
+
+        Updates world context with the heard text.
+
+        Args:
+            text: Transcribed speech text
+        """
+        logger.info(f"Heard speech: '{text}'")
+        self._world_context.last_heard_text = text
+        self._world_context.time_since_last_speech = 0.0
 
     def _on_connection_change(self, connected: bool) -> None:
         """

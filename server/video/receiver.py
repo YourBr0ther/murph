@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from aiortc import RTCPeerConnection, RTCSessionDescription
     from aiortc.mediastreams import MediaStreamTrack
 
+    from ..audio import AudioReceiver
+
 from shared.messages import (
     MessageType,
     RobotMessage,
@@ -54,6 +56,7 @@ class VideoReceiver:
         self,
         on_frame: Callable[[np.ndarray], None] | None = None,
         on_signaling: Callable[[RobotMessage], Any] | None = None,
+        audio_receiver: AudioReceiver | None = None,
     ) -> None:
         """
         Initialize video receiver.
@@ -61,9 +64,11 @@ class VideoReceiver:
         Args:
             on_frame: Callback for received video frames (numpy RGB array)
             on_signaling: Callback for sending signaling messages to Pi
+            audio_receiver: AudioReceiver for handling audio tracks
         """
         self._on_frame = on_frame
         self._on_signaling = on_signaling
+        self._audio_receiver = audio_receiver
 
         self._pc: RTCPeerConnection | None = None
         self._video_track: MediaStreamTrack | None = None
@@ -214,6 +219,13 @@ class VideoReceiver:
                         self._extract_frames(track),
                         name="frame_extraction",
                     )
+
+            elif track.kind == "audio":
+                # Forward to audio receiver for STT processing
+                if self._audio_receiver:
+                    self._audio_receiver.handle_track(track)
+                else:
+                    logger.warning("Audio track received but no audio receiver configured")
 
         @self._pc.on("icecandidate")
         async def on_ice_candidate(candidate: Any) -> None:

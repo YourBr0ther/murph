@@ -414,16 +414,16 @@ class VirtualPi:
         """Start virtual Pi and connect to server."""
         self._running = True
 
-        # Initialize video if enabled
-        if self._video_enabled:
-            await self._init_video()
-
-        # Initialize audio if enabled
+        # Initialize audio first (microphone needed for video streamer)
         if self._audio_enabled:
             await self._init_audio()
             if self._microphone:
                 await self._microphone.start()
                 self._state.audio_running = True
+
+        # Initialize video (will include audio track if microphone available)
+        if self._video_enabled:
+            await self._init_video()
 
         asyncio.create_task(self._connect_to_server())
         self._sensor_task = asyncio.create_task(self._sensor_loop())
@@ -434,11 +434,11 @@ class VirtualPi:
         """Stop virtual Pi."""
         self._running = False
 
-        # Shutdown audio capture
-        await self._shutdown_audio()
-
-        # Shutdown video streaming
+        # Shutdown video streaming first (releases audio track)
         await self._shutdown_video()
+
+        # Then shutdown audio capture
+        await self._shutdown_audio()
 
         if self._move_task and not self._move_task.done():
             self._move_task.cancel()
@@ -472,12 +472,16 @@ class VirtualPi:
             await self._camera.initialize()
             self._state.webcam_available = False
 
-        # Create video streamer
+        # Create media streamer (video + optional audio)
         self._video_streamer = EmulatorVideoStreamer(
             camera=self._camera,
+            microphone=self._microphone if self._audio_enabled else None,
             on_signaling=self._send_webrtc_signaling,
         )
-        logger.info("Video streamer initialized")
+        logger.info(
+            f"Media streamer initialized "
+            f"(audio={'enabled' if self._audio_enabled and self._microphone else 'disabled'})"
+        )
 
     async def _shutdown_video(self) -> None:
         """Shutdown video streaming."""

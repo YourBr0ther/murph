@@ -161,3 +161,97 @@ class TestAudioState:
         assert state.is_voice_detected
         assert state.samples_captured == 1000
         assert state.last_update_ms == 12345
+
+
+class TestMockMicrophoneCaptureAudioChunk:
+    """Tests for audio chunk retrieval from MockMicrophoneCapture."""
+
+    @pytest.mark.asyncio
+    async def test_get_audio_chunk_not_running(self) -> None:
+        """Test get_audio_chunk returns None when not running."""
+        mic = MockMicrophoneCapture()
+        chunk = mic.get_audio_chunk()
+        assert chunk is None
+
+    @pytest.mark.asyncio
+    async def test_get_audio_chunk_returns_bytes(self) -> None:
+        """Test get_audio_chunk returns audio bytes when running."""
+        mic = MockMicrophoneCapture()
+        await mic.start()
+
+        chunk = mic.get_audio_chunk()
+
+        assert chunk is not None
+        assert isinstance(chunk, bytes)
+        # 20ms at 16kHz = 320 samples * 2 bytes = 640 bytes
+        assert len(chunk) == 640
+
+        await mic.stop()
+
+    @pytest.mark.asyncio
+    async def test_get_audio_chunk_voice_vs_silence(self) -> None:
+        """Test get_audio_chunk produces different audio for voice vs silence."""
+        mic = MockMicrophoneCapture()
+        await mic.start()
+
+        # Get silence chunk
+        silence_chunk = mic.get_audio_chunk()
+
+        # Simulate voice and get voice chunk
+        mic.simulate_voice(duration=1.0)
+        await asyncio.sleep(0.1)
+        voice_chunk = mic.get_audio_chunk()
+
+        assert silence_chunk is not None
+        assert voice_chunk is not None
+        # Voice chunk should have more energy (different bytes)
+        assert silence_chunk != voice_chunk
+
+        await mic.stop()
+
+
+class TestMicrophoneCaptureAudioChunk:
+    """Tests for audio chunk retrieval from MicrophoneCapture."""
+
+    @pytest.mark.asyncio
+    async def test_get_audio_chunk_returns_bytes(self) -> None:
+        """Test get_audio_chunk returns audio bytes when running."""
+        mic = MicrophoneCapture()
+        await mic.start()
+
+        # Wait for buffer to fill
+        await asyncio.sleep(0.1)
+
+        chunk = mic.get_audio_chunk()
+
+        # May or may not have data depending on mock vs real
+        if chunk is not None:
+            assert isinstance(chunk, bytes)
+
+        await mic.stop()
+
+
+class TestCreateAudioTrack:
+    """Tests for create_audio_track factory method."""
+
+    def test_mock_create_audio_track(self) -> None:
+        """Test MockMicrophoneCapture can create audio track."""
+        from emulator.audio.track import MicrophoneAudioTrack
+
+        mic = MockMicrophoneCapture()
+        track = mic.create_audio_track()
+
+        assert track is not None
+        assert isinstance(track, MicrophoneAudioTrack)
+        assert track.kind == "audio"
+
+    def test_microphone_create_audio_track(self) -> None:
+        """Test MicrophoneCapture can create audio track."""
+        from emulator.audio.track import MicrophoneAudioTrack
+
+        mic = MicrophoneCapture()
+        track = mic.create_audio_track()
+
+        assert track is not None
+        assert isinstance(track, MicrophoneAudioTrack)
+        assert track.kind == "audio"

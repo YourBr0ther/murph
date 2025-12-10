@@ -6,12 +6,18 @@ Audio input simulation for the emulator.
 from __future__ import annotations
 
 import asyncio
+import collections
 import logging
 import math
 import random
+import threading
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .track import MicrophoneAudioTrack
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +73,16 @@ class BaseMicrophoneCapture(ABC):
     @abstractmethod
     def is_available(self) -> bool:
         """Check if microphone is available."""
+        pass
+
+    @abstractmethod
+    def get_audio_chunk(self) -> bytes | None:
+        """Get next audio chunk for streaming (or None if empty)."""
+        pass
+
+    @abstractmethod
+    def create_audio_track(self) -> MicrophoneAudioTrack:
+        """Create an aiortc-compatible AudioStreamTrack."""
         pass
 
 
@@ -194,6 +210,33 @@ class MockMicrophoneCapture(BaseMicrophoneCapture):
         self._voice_active = False
         self._voice_end_time = 0.0
 
+    def get_audio_chunk(self) -> bytes | None:
+        """Generate synthetic audio chunk for mock."""
+        if not self._running:
+            return None
+
+        # 20ms at 16kHz = 320 samples, 16-bit = 640 bytes
+        samples = 320
+        try:
+            import numpy as np
+
+            if self._voice_active:
+                # Generate noise to simulate speech
+                audio = np.random.randint(-1000, 1000, samples, dtype=np.int16)
+            else:
+                # Near-silent background noise
+                audio = np.random.randint(-10, 10, samples, dtype=np.int16)
+            return audio.tobytes()
+        except ImportError:
+            # Fallback without numpy - return silence
+            return bytes(samples * 2)
+
+    def create_audio_track(self) -> MicrophoneAudioTrack:
+        """Create an aiortc-compatible AudioStreamTrack."""
+        from .track import MicrophoneAudioTrack
+
+        return MicrophoneAudioTrack(self)
+
 
 class MicrophoneCapture(BaseMicrophoneCapture):
     """
@@ -230,6 +273,10 @@ class MicrophoneCapture(BaseMicrophoneCapture):
 
         self._stream = None
         self._initialized = False
+
+        # Audio buffer for streaming (thread-safe for sounddevice callback)
+        self._audio_buffer: collections.deque[bytes] = collections.deque(maxlen=100)
+        self._buffer_lock = threading.Lock()
 
         # Check if we can use real audio
         if not HAS_NUMPY:
@@ -284,6 +331,12 @@ class MicrophoneCapture(BaseMicrophoneCapture):
                 self._samples_captured += frames
                 self._last_update_ms = int(time.time() * 1000)
 
+                # Store raw audio for streaming
+                with self._buffer_lock:
+                    # Convert to 16-bit PCM and store
+                    audio_bytes = (indata * 32767).astype(np.int16).tobytes()
+                    self._audio_buffer.append(audio_bytes)
+
             self._stream = sd.InputStream(
                 samplerate=self._sample_rate,
                 blocksize=self._chunk_size,
@@ -336,3 +389,18 @@ class MicrophoneCapture(BaseMicrophoneCapture):
             samples_captured=self._samples_captured,
             last_update_ms=self._last_update_ms,
         )
+
+    def get_audio_chunk(self) -> bytes | None:
+        """Get next audio chunk for streaming (or None if empty)."""
+        if self._mock:
+            return self._mock.get_audio_chunk()
+        with self._buffer_lock:
+            if self._audio_buffer:
+                return self._audio_buffer.popleft()
+            return None
+
+    def create_audio_track(self) -> MicrophoneAudioTrack:
+        """Create an aiortc-compatible AudioStreamTrack."""
+        from .track import MicrophoneAudioTrack
+
+        return MicrophoneAudioTrack(self)

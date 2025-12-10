@@ -3,32 +3,32 @@
 ## Status: Ready for Next Feature
 
 ## Previous Task Completed
-Quality Improvements (Tests + Expression System) - 2024-12-10
+Speech Recognition Streaming (Pi -> Server STT) - 2024-12-10
 
 ## Next Feature Options (from PROGRESS.md)
-1. Speech recognition streaming (Pi -> Server STT)
-2. Additional behavior sets
-3. Dashboard/web UI for monitoring
+1. Additional behavior sets
+2. Dashboard/web UI for monitoring
 
 ## Notes
-Completed three quality improvements:
+Completed speech recognition streaming implementation:
 
-### 1. Communication Layer Tests
-- `tests/test_server/test_communication/` - 72 tests
-- Covers: PiConnectionManager, ActionDispatcher
-- Full coverage of WebSocket handling, command dispatch, ack handling
+### 1. Audio Capture and Streaming (Emulator Side)
+- `emulator/audio/microphone.py` - Added `get_audio_chunk()` and `create_audio_track()` methods
+- `emulator/audio/track.py` - New `MicrophoneAudioTrack` class (aiortc-compatible)
+- `emulator/video/streamer.py` - Extended to support optional audio track alongside video
 
-### 2. Expression System
-- `server/expression/types.py` - ExpressionType enum, ExpressionMetadata
-- `server/expression/registry.py` - Central catalog with valence/arousal metadata
-- `server/expression/selector.py` - Needs-based expression selection
-- `tests/test_server/test_expression.py` - 38 tests
+### 2. Audio Reception (Server Side)
+- `server/audio/receiver.py` - New `AudioBuffer` and `AudioReceiver` classes
+- `server/video/receiver.py` - Added audio track handling in `@pc.on("track")` callback
+- `server/orchestrator.py` - Wired up AudioReceiver with SpeechService for STT
 
-### 3. LLM Provider Tests
-- `tests/test_server/test_llm/test_ollama_provider.py` - ~25 tests
-- `tests/test_server/test_llm/test_nanogpt_provider.py` - ~23 tests
-- Covers: complete(), complete_with_vision(), health_check(), list_models()
+### 3. WorldContext Integration
+- `server/cognition/behavior/context.py` - Added `last_heard_text` and `time_since_last_speech` fields
+- New triggers: `heard_speech`, `heard_speech_recent`
+
+### 4. Virtual Pi Integration
+- `emulator/virtual_pi.py` - Now passes microphone to media streamer when audio enabled
 
 ### Test Coverage
-- 922 tests passing (+150 new tests)
-- 8 skipped (require cv2/aiohttp not in test env)
+- 955 tests passing (+33 new tests)
+- 12 skipped (require cv2/aiohttp/PyAV not in test env)

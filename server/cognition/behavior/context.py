@@ -59,6 +59,10 @@ class WorldContext:
     time_since_last_interaction: float = 0.0
     current_behavior: str | None = None
 
+    # Speech recognition
+    last_heard_text: str | None = None
+    time_since_last_speech: float = float("inf")
+
     # Memory-derived state (populated by MemorySystem)
     remembered_person_name: str | None = None
     person_interaction_count: int = 0
@@ -130,6 +134,9 @@ class WorldContext:
             # Time-based triggers
             "lonely": self.time_since_last_interaction > 300,  # 5 minutes
             "very_lonely": self.time_since_last_interaction > 600,  # 10 minutes
+            # Speech triggers
+            "heard_speech": self.time_since_last_speech < 5.0,  # Recent speech
+            "heard_speech_recent": self.time_since_last_speech < 2.0,  # Very recent
             # Memory-derived triggers
             "familiar_person_remembered": (
                 self.person_detected and self.remembered_person_name is not None
@@ -193,6 +200,8 @@ class WorldContext:
             "person_detected", "unknown_object", "has_objects", "being_held",
             "being_petted", "recent_bump", "low_light", "loud_environment",
             "near_edge", "near_charger", "lonely", "very_lonely",
+            # Speech triggers
+            "heard_speech", "heard_speech_recent",
             # Memory-derived triggers
             "familiar_person_remembered", "positive_history", "negative_sentiment",
             "positive_sentiment", "recently_greeted", "recently_played", "recently_petted",
@@ -228,6 +237,8 @@ class WorldContext:
             "recent_bump": self.recent_bump,
             "time_since_last_interaction": self.time_since_last_interaction,
             "current_behavior": self.current_behavior,
+            "last_heard_text": self.last_heard_text,
+            "time_since_last_speech": self.time_since_last_speech,
             "remembered_person_name": self.remembered_person_name,
             "person_interaction_count": self.person_interaction_count,
             "person_sentiment": self.person_sentiment,
@@ -266,6 +277,8 @@ class WorldContext:
             recent_bump=state.get("recent_bump", False),
             time_since_last_interaction=state.get("time_since_last_interaction", 0.0),
             current_behavior=state.get("current_behavior"),
+            last_heard_text=state.get("last_heard_text"),
+            time_since_last_speech=state.get("time_since_last_speech", float("inf")),
             remembered_person_name=state.get("remembered_person_name"),
             person_interaction_count=state.get("person_interaction_count", 0),
             person_sentiment=state.get("person_sentiment", 0.0),
@@ -313,6 +326,10 @@ class WorldContext:
             },
             "memory": {
                 "recent_events": self.recent_event_types,
+            },
+            "speech": {
+                "last_heard_text": self.last_heard_text,
+                "time_since_last_speech": self.time_since_last_speech,
             },
             "spatial": {
                 "zone_type": self.current_zone_type,

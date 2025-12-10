@@ -19,6 +19,7 @@ from shared.messages import (
 if TYPE_CHECKING:
     from aiortc import RTCPeerConnection, RTCSessionDescription
 
+    from ..audio import BaseMicrophoneCapture
     from .webcam import MockWebcamCamera, WebcamCamera
 
 logger = logging.getLogger(__name__)
@@ -48,17 +49,20 @@ class EmulatorVideoStreamer:
 
     def __init__(
         self,
-        camera: WebcamCamera | MockWebcamCamera,
+        camera: WebcamCamera | MockWebcamCamera | None = None,
+        microphone: BaseMicrophoneCapture | None = None,
         on_signaling: Callable[[RobotMessage], Any] | None = None,
     ) -> None:
         """
-        Initialize video streamer.
+        Initialize media streamer.
 
         Args:
             camera: WebcamCamera or MockWebcamCamera instance for video capture
+            microphone: MicrophoneCapture instance for audio capture
             on_signaling: Callback for sending signaling messages to server
         """
         self._camera = camera
+        self._microphone = microphone
         self._on_signaling = on_signaling
 
         self._pc: RTCPeerConnection | None = None
@@ -75,15 +79,19 @@ class EmulatorVideoStreamer:
 
     async def start(self) -> None:
         """
-        Start the video streamer.
+        Start the media streamer.
 
         Creates peer connection and initiates offer/answer exchange.
         """
         self._running = True
 
         # Start camera if not already running
-        if not self._camera.is_running:
+        if self._camera and not self._camera.is_running:
             await self._camera.start()
+
+        # Start microphone if provided
+        if self._microphone:
+            await self._microphone.start()
 
         # Create peer connection and send offer
         await self._create_connection()
@@ -130,8 +138,16 @@ class EmulatorVideoStreamer:
         self._setup_pc_handlers()
 
         # Add video track from camera
-        video_track = self._camera.create_video_track()
-        self._pc.addTrack(video_track)
+        if self._camera:
+            video_track = self._camera.create_video_track()
+            self._pc.addTrack(video_track)
+            logger.info("Added video track to peer connection")
+
+        # Add audio track from microphone
+        if self._microphone:
+            audio_track = self._microphone.create_audio_track()
+            self._pc.addTrack(audio_track)
+            logger.info("Added audio track to peer connection")
 
         # Create and send offer
         offer = await self._pc.createOffer()
@@ -305,6 +321,7 @@ class EmulatorVideoStreamer:
             "connected": self._connected,
             "connection_state": self._connection_state,
             "camera_running": self._camera.is_running if self._camera else False,
+            "microphone_available": self._microphone.is_available if self._microphone else False,
         }
 
     def __repr__(self) -> str:
