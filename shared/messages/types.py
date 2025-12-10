@@ -689,6 +689,7 @@ RobotMessagePayload = (
     | WebRTCIceCandidate
     | VoiceActivityMessage
     | AudioDataMessage
+    | SimulatedTranscription
 )
 
 
@@ -747,6 +748,8 @@ class RobotMessage:
             payload = VoiceActivityMessage.from_dict(payload_data)
         elif msg_type == MessageType.AUDIO_DATA:
             payload = AudioDataMessage.from_dict(payload_data)
+        elif msg_type == MessageType.SIMULATED_TRANSCRIPTION:
+            payload = SimulatedTranscription.from_dict(payload_data)
 
         return cls(
             timestamp_ms=data.get("timestamp_ms", 0),
@@ -974,4 +977,12 @@ def create_audio_data(
             chunk_index=chunk_index,
             is_final=is_final,
         ),
+    )
+
+
+def create_simulated_transcription(text: str) -> RobotMessage:
+    """Create a simulated transcription message (for emulator testing)."""
+    return RobotMessage(
+        message_type=MessageType.SIMULATED_TRANSCRIPTION,
+        payload=SimulatedTranscription(text=text),
     )

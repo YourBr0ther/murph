@@ -310,6 +310,16 @@ function simulateShake() {
     setTimeout(() => robot.classList.remove('shaking'), 1000);
 }
 
+function simulateFalling() {
+    sendCommand('falling');
+    flashButton(event.target);
+
+    // Visual feedback - robot drops briefly
+    const robot = elements.robot;
+    robot.classList.add('falling');
+    setTimeout(() => robot.classList.remove('falling'), 300);
+}
+
 function sendVoiceCommand() {
     const input = document.getElementById('voiceInput');
     const text = input.value.trim();

@@ -3,60 +3,61 @@
 ## Status: Ready for Next Feature
 
 ## Previous Task Completed
-Additional Behavior Sets - 2024-12-10
+Emulator Feature Complete - 2024-12-10
 
 ## Next Feature Options (from PROGRESS.md)
 1. Hardware testing with real Pi
 
 ## Notes
-Completed additional behavior sets implementation:
+Completed emulator production-ready implementation:
 
-### Behaviors Added (22 total)
+### Bug Fixes
+1. Fixed `inject_voice_text()` method in virtual_pi.py
+   - Changed `self._ws` to `self._websocket`
+   - Changed `self._connected` to proper websocket check
+   - Changed `msg.to_json()` to `msg.serialize()`
 
-#### Time-Based Routines (8)
-1. `wake_up` - Morning wake up with stretching and alertness
-2. `morning_stretch` - Cat-like morning stretch routine
-3. `energetic_start` - Energetic morning burst of activity
-4. `midday_activity` - Active midday exploration and play
-5. `afternoon_rest` - Relaxed afternoon rest period
-6. `evening_settle` - Evening wind-down and settling routine
-7. `pre_sleep_yawn` - Pre-sleep yawn and drowsiness
-8. `night_stir` - Occasional night-time stirring
+2. Fixed SIMULATED_TRANSCRIPTION message handling
+   - Added `SimulatedTranscription` to `RobotMessagePayload` union type
+   - Added case in `RobotMessage.from_dict()` for deserialization
 
-#### Personality Expressions (8)
-1. `stretch` - Cat-like stretch expression (5% spontaneous)
-2. `yawn` - Yawning expression (4% spontaneous)
-3. `daydream` - Zoning out and daydreaming (3% spontaneous)
-4. `shake_off` - Dog-like shake off motion (2% spontaneous)
-5. `sneeze` - Cute sneeze reaction (1% spontaneous)
-6. `happy_wiggle` - Excited happy wiggle (3% spontaneous)
-7. `curious_tilt` - Head tilt showing curiosity (4% spontaneous)
-8. `contented_sigh` - Contented sigh of satisfaction (3% spontaneous)
+### New Features
+1. Added `simulate_falling()` method to VirtualPi
+   - Simulates freefall by setting low acceleration (< 0.3g)
+   - Auto-restores IMU to normal after duration
+   - Sends "falling" local trigger to server
 
-#### Reactive Behaviors (6)
-1. `dropped_recovery` - Recovery after being dropped/falling
-2. `loud_noise_reaction` - Startle and scan on loud noise
-3. `new_object_investigation` - Cautious investigation of new object
-4. `person_left_sad` - Sad reaction when person leaves view
-5. `touched_unexpectedly` - Startle on unexpected touch
-6. `picked_up_happy` - Happy reaction when picked up by familiar person
+2. Added `create_simulated_transcription()` factory helper
+   - Creates SimulatedTranscription messages for testing voice commands
 
-### Architecture Changes
-- Added `time_preferences` and `spontaneous_probability` fields to Behavior
-- Added `current_hour`, `time_period`, `person_detected_previous`, `was_falling` to WorldContext
-- Added `_calculate_time_modifier()` and `_calculate_spontaneous_bonus()` to BehaviorEvaluator
-- Added new computed triggers: `is_morning`, `is_midday`, `is_evening`, `is_night`, `person_left`, `dropped`, `touched_unexpected`
+3. Added falling API endpoint (`/api/falling`) in emulator app
+   - REST endpoint for triggering falling simulation
+   - WebSocket handler for UI command
+
+### UI Updates
+1. Static HTML (index.html) - Added falling button
+2. emulator.js - Added `simulateFalling()` function with visual feedback
+3. Fallback HTML - Added falling button and voice input panel
+
+### Test Coverage
+- 27 new tests in `test_virtual_pi_full.py`
+- Reflex simulation tests (pickup, bump, shake, falling, touch)
+- Command handling tests (motor, turn, expression, sound, scan, stop)
+- Voice injection tests
+- Message type tests
+- Reflex processor tests
+- State tests
 
 ### Files Modified
-- `server/cognition/behavior/behavior.py` - New fields
-- `server/cognition/behavior/context.py` - Time context and triggers
-- `server/cognition/behavior/evaluator.py` - New modifier methods
-- `server/cognition/behavior/behavior_registry.py` - 22 new behaviors
-- `server/cognition/behavior/trees.py` - 22 new behavior trees
+- `emulator/virtual_pi.py` - Bug fixes + simulate_falling
+- `emulator/app.py` - API endpoint + UI handler + fallback HTML
+- `emulator/static/index.html` - Falling button
+- `emulator/static/emulator.js` - simulateFalling function
+- `shared/messages/types.py` - SimulatedTranscription handling + factory
+- `shared/messages/__init__.py` - Export factory helper
 
 ### Files Created
-- `tests/test_server/test_additional_behaviors.py` - 26 tests
+- `tests/test_emulator/test_virtual_pi_full.py` - 27 comprehensive tests
 
 ### Test Results
-- 1078 tests passing
-- 26 new tests for additional behaviors
+- 1105 tests passing (27 new)

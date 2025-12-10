@@ -136,6 +136,13 @@ def create_app(
             virtual_pi.simulate_shake()
         return {"ok": True}
 
+    @app.post("/api/falling")
+    async def simulate_falling():
+        """Simulate falling/being dropped."""
+        if virtual_pi:
+            virtual_pi.simulate_falling()
+        return {"ok": True}
+
     @app.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket):
         """WebSocket endpoint for real-time state updates."""
@@ -211,6 +218,9 @@ async def handle_ui_command(data: dict[str, Any]) -> None:
     elif cmd_type == "shake":
         virtual_pi.simulate_shake()
 
+    elif cmd_type == "falling":
+        virtual_pi.simulate_falling()
+
     elif cmd_type == "voice_input":
         text = data.get("text", "")
         if text:
@@ -264,6 +274,13 @@ def get_fallback_html() -> str:
             <button onclick="simulatePickup()">Pick Up</button>
             <button onclick="simulateBump()">Bump</button>
             <button onclick="simulateShake()">Shake</button>
+            <button onclick="simulateFalling()">Fall</button>
+        </div>
+
+        <div class="panel">
+            <h2>Voice Command</h2>
+            <input type="text" id="voiceInput" placeholder="Murph, come here..." style="padding: 8px; width: 200px;">
+            <button onclick="sendVoice()">Send</button>
         </div>
 
         <div class="panel">
@@ -328,6 +345,18 @@ def get_fallback_html() -> str:
 
         function simulateShake() {
             ws.send(JSON.stringify({ type: 'shake' }));
+        }
+
+        function simulateFalling() {
+            ws.send(JSON.stringify({ type: 'falling' }));
+        }
+
+        function sendVoice() {
+            const text = document.getElementById('voiceInput').value;
+            if (text) {
+                ws.send(JSON.stringify({ type: 'voice_input', text: text }));
+                document.getElementById('voiceInput').value = '';
+            }
         }
 
         connect();

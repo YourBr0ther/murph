@@ -26,6 +26,7 @@ from shared.messages import (
     MotorDirection,
     ScanCommand,
     ScanType,
+    SimulatedTranscription,
     SoundCommand,
     StopCommand,
     TurnCommand,
@@ -993,6 +994,18 @@ class VirtualPi:
         asyncio.create_task(self._clear_event("shake", duration))
         asyncio.create_task(self._send_local_trigger("shake", 0.9))
 
+    def simulate_falling(self, duration: float = 0.3) -> None:
+        """Simulate being dropped (freefall)."""
+        # Set low acceleration to simulate freefall (< 0.3g)
+        self._state.imu_accel_z = -0.2  # Near zero gravity
+        asyncio.create_task(self._clear_falling_event(duration))
+        asyncio.create_task(self._send_local_trigger("falling", 1.0))
+
+    async def _clear_falling_event(self, duration: float) -> None:
+        """Reset IMU to normal after simulated fall."""
+        await asyncio.sleep(duration)
+        self._state.imu_accel_z = -1.0  # Return to 1g
+
     async def inject_voice_text(self, text: str) -> None:
         """
         Inject simulated voice text (bypasses STT).
@@ -1003,13 +1016,7 @@ class VirtualPi:
         Args:
             text: The simulated transcribed text (e.g., "Murph, come here")
         """
-        from shared.messages import (
-            MessageType,
-            RobotMessage,
-            SimulatedTranscription,
-        )
-
-        if not self._ws or not self._connected:
+        if not self._websocket:
             logger.warning("Cannot inject voice text: not connected to server")
             return
 
@@ -1019,7 +1026,7 @@ class VirtualPi:
         )
 
         try:
-            await self._ws.send(msg.to_json())
+            await self._websocket.send(msg.serialize())
             logger.info(f"Injected voice text: '{text}'")
         except Exception as e:
             logger.error(f"Failed to inject voice text: {e}")
