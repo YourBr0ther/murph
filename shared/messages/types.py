@@ -50,6 +50,9 @@ class MessageType(IntEnum):
     WEBRTC_OFFER = 40
     WEBRTC_ANSWER = 41
     WEBRTC_ICE_CANDIDATE = 42
+    SPEECH_COMMAND = 51       # Server -> Pi: TTS audio to play
+    VOICE_ACTIVITY = 52       # Pi -> Server: VAD state changes
+    AUDIO_DATA = 53           # Pi -> Server: Raw audio chunks
 
 
 # =============================================================================
@@ -172,8 +175,42 @@ class StopCommand:
         return cls()
 
 
+@dataclass
+class SpeechCommand:
+    """Play synthesized speech audio (Server -> Pi)."""
+
+    audio_data: str = ""  # Base64-encoded audio bytes
+    audio_format: str = "wav"  # "wav", "mp3", "pcm"
+    sample_rate: int = 22050  # Sample rate in Hz
+    volume: float = 1.0  # 0.0-1.0
+    emotion: str = "neutral"  # Emotional tone
+    text: str = ""  # Original text (for debugging)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "type": "speech",
+            "audio_data": self.audio_data,
+            "audio_format": self.audio_format,
+            "sample_rate": self.sample_rate,
+            "volume": self.volume,
+            "emotion": self.emotion,
+            "text": self.text,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> SpeechCommand:
+        return cls(
+            audio_data=data.get("audio_data", ""),
+            audio_format=data.get("audio_format", "wav"),
+            sample_rate=data.get("sample_rate", 22050),
+            volume=data.get("volume", 1.0),
+            emotion=data.get("emotion", "neutral"),
+            text=data.get("text", ""),
+        )
+
+
 # Union type for all commands
-CommandPayload = MotorCommand | TurnCommand | ExpressionCommand | SoundCommand | ScanCommand | StopCommand
+CommandPayload = MotorCommand | TurnCommand | ExpressionCommand | SoundCommand | ScanCommand | StopCommand | SpeechCommand
 
 
 @dataclass
@@ -215,6 +252,8 @@ class Command:
             payload = ScanCommand.from_dict(payload_data)
         elif payload_type == "stop":
             payload = StopCommand.from_dict(payload_data)
+        elif payload_type == "speech":
+            payload = SpeechCommand.from_dict(payload_data)
 
         return cls(
             sequence_id=data.get("sequence_id", 0),
@@ -410,6 +449,76 @@ class LocalTrigger:
 
 
 # =============================================================================
+# AUDIO/SPEECH MESSAGES (Pi -> Server)
+# =============================================================================
+
+
+@dataclass
+class VoiceActivityMessage:
+    """Voice activity detection state changes (Pi -> Server)."""
+
+    is_speaking: bool = False  # True when voice detected
+    audio_level: float = 0.0  # RMS level 0.0-1.0
+    timestamp_ms: int = 0
+
+    def __post_init__(self) -> None:
+        if self.timestamp_ms == 0:
+            self.timestamp_ms = int(time.time() * 1000)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "is_speaking": self.is_speaking,
+            "audio_level": self.audio_level,
+            "timestamp_ms": self.timestamp_ms,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> VoiceActivityMessage:
+        return cls(
+            is_speaking=data.get("is_speaking", False),
+            audio_level=data.get("audio_level", 0.0),
+            timestamp_ms=data.get("timestamp_ms", 0),
+        )
+
+
+@dataclass
+class AudioDataMessage:
+    """Streaming audio data from Pi microphone (Pi -> Server)."""
+
+    audio_data: str = ""  # Base64-encoded PCM audio
+    sample_rate: int = 16000  # 16kHz for Whisper
+    channels: int = 1  # Mono
+    chunk_index: int = 0  # Sequence number
+    is_final: bool = False  # End of utterance (VAD silence)
+    timestamp_ms: int = 0
+
+    def __post_init__(self) -> None:
+        if self.timestamp_ms == 0:
+            self.timestamp_ms = int(time.time() * 1000)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "audio_data": self.audio_data,
+            "sample_rate": self.sample_rate,
+            "channels": self.channels,
+            "chunk_index": self.chunk_index,
+            "is_final": self.is_final,
+            "timestamp_ms": self.timestamp_ms,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> AudioDataMessage:
+        return cls(
+            audio_data=data.get("audio_data", ""),
+            sample_rate=data.get("sample_rate", 16000),
+            channels=data.get("channels", 1),
+            chunk_index=data.get("chunk_index", 0),
+            is_final=data.get("is_final", False),
+            timestamp_ms=data.get("timestamp_ms", 0),
+        )
+
+
+# =============================================================================
 # CONNECTION/STATE MESSAGES
 # =============================================================================
 
@@ -552,6 +661,8 @@ RobotMessagePayload = (
     | WebRTCOffer
     | WebRTCAnswer
     | WebRTCIceCandidate
+    | VoiceActivityMessage
+    | AudioDataMessage
 )
 
 
@@ -604,6 +715,12 @@ class RobotMessage:
             payload = WebRTCAnswer.from_dict(payload_data)
         elif msg_type == MessageType.WEBRTC_ICE_CANDIDATE:
             payload = WebRTCIceCandidate.from_dict(payload_data)
+        elif msg_type == MessageType.SPEECH_COMMAND:
+            payload = Command.from_dict(payload_data)
+        elif msg_type == MessageType.VOICE_ACTIVITY:
+            payload = VoiceActivityMessage.from_dict(payload_data)
+        elif msg_type == MessageType.AUDIO_DATA:
+            payload = AudioDataMessage.from_dict(payload_data)
 
         return cls(
             timestamp_ms=data.get("timestamp_ms", 0),
@@ -772,5 +889,63 @@ def create_webrtc_ice_candidate(
             candidate=candidate,
             sdp_mid=sdp_mid,
             sdp_mline_index=sdp_mline_index,
+        ),
+    )
+
+
+def create_speech_command(
+    audio_data: str,
+    audio_format: str = "wav",
+    sample_rate: int = 22050,
+    volume: float = 1.0,
+    emotion: str = "neutral",
+    text: str = "",
+    sequence_id: int = 0,
+) -> RobotMessage:
+    """Create a speech command message with TTS audio."""
+    return RobotMessage(
+        message_type=MessageType.SPEECH_COMMAND,
+        payload=Command(
+            sequence_id=sequence_id,
+            payload=SpeechCommand(
+                audio_data=audio_data,
+                audio_format=audio_format,
+                sample_rate=sample_rate,
+                volume=volume,
+                emotion=emotion,
+                text=text,
+            ),
+        ),
+    )
+
+
+def create_voice_activity(
+    is_speaking: bool,
+    audio_level: float = 0.0,
+) -> RobotMessage:
+    """Create a voice activity message."""
+    return RobotMessage(
+        message_type=MessageType.VOICE_ACTIVITY,
+        payload=VoiceActivityMessage(
+            is_speaking=is_speaking,
+            audio_level=audio_level,
+        ),
+    )
+
+
+def create_audio_data(
+    audio_data: str,
+    chunk_index: int = 0,
+    is_final: bool = False,
+    sample_rate: int = 16000,
+) -> RobotMessage:
+    """Create an audio data message."""
+    return RobotMessage(
+        message_type=MessageType.AUDIO_DATA,
+        payload=AudioDataMessage(
+            audio_data=audio_data,
+            sample_rate=sample_rate,
+            chunk_index=chunk_index,
+            is_final=is_final,
         ),
     )

@@ -31,6 +31,11 @@ class LLMConfig:
     # Feature toggles
     vision_enabled: bool = True
     reasoning_enabled: bool = True
+    speech_enabled: bool = True
+
+    # Speech settings
+    tts_model: str = "kokoro-82m"  # NanoGPT TTS model (cheapest)
+    stt_model: str = "whisper-large-v3"  # NanoGPT STT model
 
     # Vision analysis settings
     vision_interval_seconds: float = 3.0
@@ -86,6 +91,9 @@ class LLMConfig:
             cache_ttl_seconds=float(os.getenv("MURPH_LLM_CACHE_TTL", "30.0")),
             request_timeout_seconds=float(os.getenv("MURPH_LLM_TIMEOUT", "10.0")),
             reasoning_score_threshold=float(os.getenv("MURPH_LLM_REASONING_THRESHOLD", "0.3")),
+            speech_enabled=os.getenv("MURPH_SPEECH_ENABLED", "true").lower() == "true",
+            tts_model=os.getenv("MURPH_TTS_MODEL", "kokoro-82m"),
+            stt_model=os.getenv("MURPH_STT_MODEL", "whisper-large-v3"),
         )
 
     def validate(self) -> list[str]:

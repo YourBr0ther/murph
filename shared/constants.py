@@ -64,3 +64,13 @@ LLM_REQUEST_TIMEOUT_MS = 10000  # Timeout for LLM requests
 LLM_CACHE_TTL_MS = 30000  # Cache TTL for LLM responses
 LLM_MAX_REQUESTS_PER_MINUTE = 20  # Rate limit for LLM requests
 LLM_REASONING_THRESHOLD = 0.3  # Score diff threshold for behavior reasoning
+
+# Speech/Audio
+AUDIO_SAMPLE_RATE_STT = 16000  # Hz for STT (Whisper requires 16kHz)
+AUDIO_SAMPLE_RATE_TTS = 22050  # Hz for TTS output
+AUDIO_CHUNK_SIZE = 1024  # Samples per chunk (~64ms at 16kHz)
+VAD_THRESHOLD = 0.15  # Voice activity detection threshold
+VAD_SILENCE_DURATION_MS = 500  # Silence duration before end-of-speech
+TTS_MAX_TEXT_LENGTH = 200  # Max characters per TTS request
+SPEECH_TIMEOUT_MS = 5000  # TTS request timeout
+SPEECH_CACHE_MAX_ENTRIES = 50  # Max cached TTS phrases

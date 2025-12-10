@@ -117,6 +117,40 @@ class MockAudioController(AudioController):
         """Get current volume level."""
         return self._volume
 
+    async def play_audio_data(
+        self,
+        audio_data: bytes,
+        audio_format: str = "wav",
+        sample_rate: int = 22050,
+        volume: float = 1.0,
+    ) -> None:
+        """
+        Play raw audio data (for TTS output).
+
+        Args:
+            audio_data: Raw audio bytes
+            audio_format: Format ("wav", "mp3", "pcm")
+            sample_rate: Sample rate in Hz
+            volume: Volume level 0.0-1.0
+        """
+        if not self._ready:
+            logger.warning("Audio controller not ready")
+            return
+
+        await self.stop_sound()
+
+        # Estimate duration from audio length (16-bit mono)
+        duration = len(audio_data) / (sample_rate * 2)
+
+        self._current_sound = "tts_speech"
+        self._is_playing = True
+        self._volume = max(0.0, min(1.0, volume))
+
+        logger.debug(f"Playing TTS audio: {len(audio_data)} bytes, ~{duration:.1f}s")
+
+        # Schedule sound end
+        self._play_task = asyncio.create_task(self._finish_sound(duration))
+
 
 class MAX98357AudioController(AudioController):
     """
@@ -234,3 +268,49 @@ class MAX98357AudioController(AudioController):
 
     def get_current_sound(self) -> str | None:
         return self._current_sound
+
+    async def play_audio_data(
+        self,
+        audio_data: bytes,
+        audio_format: str = "wav",
+        sample_rate: int = 22050,
+        volume: float = 1.0,
+    ) -> None:
+        """
+        Play raw audio data (for TTS output).
+
+        Args:
+            audio_data: Raw audio bytes (WAV format expected)
+            audio_format: Format ("wav", "mp3", "pcm")
+            sample_rate: Sample rate in Hz
+            volume: Volume level 0.0-1.0
+        """
+        if not self._ready or not self._mixer:
+            logger.warning("Audio controller not ready")
+            return
+
+        await self.stop_sound()
+
+        try:
+            import io
+            import pygame
+
+            # Create file-like object from bytes
+            audio_io = io.BytesIO(audio_data)
+
+            # Load and play
+            sound = pygame.mixer.Sound(audio_io)
+            sound.set_volume(max(0.0, min(1.0, volume)))
+            sound.play()
+
+            self._current_sound = "tts_speech"
+            self._is_playing = True
+
+            # Estimate duration from sound length
+            duration = sound.get_length()
+            asyncio.create_task(self._finish_sound(duration))
+
+            logger.debug(f"Playing TTS audio: {len(audio_data)} bytes, ~{duration:.1f}s")
+
+        except Exception as e:
+            logger.error(f"Failed to play audio data: {e}")

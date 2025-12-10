@@ -15,6 +15,7 @@ from .types import (
     MotorCommand,
     ScanCommand,
     SoundCommand,
+    SpeechCommand,
     StopCommand,
     TurnCommand,
     # Sensor messages
@@ -22,6 +23,9 @@ from .types import (
     MotorState,
     SensorData,
     TouchData,
+    # Audio/Speech messages
+    AudioDataMessage,
+    VoiceActivityMessage,
     # Other messages
     Heartbeat,
     LocalTrigger,
@@ -32,6 +36,7 @@ from .types import (
     WebRTCAnswer,
     WebRTCIceCandidate,
     # Factory helpers
+    create_audio_data,
     create_command_ack,
     create_expression_command,
     create_heartbeat,
@@ -39,8 +44,10 @@ from .types import (
     create_motor_command,
     create_sensor_data,
     create_sound_command,
+    create_speech_command,
     create_stop_command,
     create_turn_command,
+    create_voice_activity,
     create_webrtc_offer,
     create_webrtc_answer,
     create_webrtc_ice_candidate,
@@ -58,6 +65,7 @@ __all__ = [
     "MotorCommand",
     "ScanCommand",
     "SoundCommand",
+    "SpeechCommand",
     "StopCommand",
     "TurnCommand",
     # Sensor messages
@@ -65,6 +73,9 @@ __all__ = [
     "MotorState",
     "SensorData",
     "TouchData",
+    # Audio/Speech messages
+    "AudioDataMessage",
+    "VoiceActivityMessage",
     # Other messages
     "Heartbeat",
     "LocalTrigger",
@@ -75,6 +86,7 @@ __all__ = [
     "WebRTCAnswer",
     "WebRTCIceCandidate",
     # Factory helpers
+    "create_audio_data",
     "create_command_ack",
     "create_expression_command",
     "create_heartbeat",
@@ -82,8 +94,10 @@ __all__ = [
     "create_motor_command",
     "create_sensor_data",
     "create_sound_command",
+    "create_speech_command",
     "create_stop_command",
     "create_turn_command",
+    "create_voice_activity",
     "create_webrtc_offer",
     "create_webrtc_answer",
     "create_webrtc_ice_candidate",

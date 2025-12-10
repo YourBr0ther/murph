@@ -8,6 +8,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import base64
+
 from shared.messages import (
     Command,
     ExpressionCommand,
@@ -16,6 +18,7 @@ from shared.messages import (
     ScanCommand,
     ScanType,
     SoundCommand,
+    SpeechCommand,
     StopCommand,
     TurnCommand,
 )
@@ -95,6 +98,9 @@ class CommandHandler:
 
             elif isinstance(payload, StopCommand):
                 return await self._handle_stop()
+
+            elif isinstance(payload, SpeechCommand):
+                return await self._handle_speech(payload)
 
             else:
                 logger.warning(f"Unknown command type: {type(payload)}")
@@ -192,6 +198,32 @@ class CommandHandler:
             await self._speaker.stop_sound()
 
         logger.debug("Stop command executed")
+        return True
+
+    async def _handle_speech(self, cmd: SpeechCommand) -> bool:
+        """Handle speech audio playback command (TTS output)."""
+        if not self._speaker:
+            logger.warning("No audio controller available")
+            return False
+
+        # Decode base64 audio data
+        try:
+            audio_bytes = base64.b64decode(cmd.audio_data)
+        except Exception as e:
+            logger.error(f"Failed to decode speech audio: {e}")
+            return False
+
+        await self._speaker.play_audio_data(
+            audio_bytes,
+            cmd.audio_format,
+            cmd.sample_rate,
+            cmd.volume,
+        )
+
+        logger.debug(
+            f"Speech command: '{cmd.text[:30]}...' ({cmd.emotion}) "
+            f"{len(audio_bytes)} bytes"
+        )
         return True
 
     def get_status(self) -> dict[str, Any]:

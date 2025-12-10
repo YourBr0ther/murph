@@ -21,12 +21,13 @@
 - [x] Emulator webcam video streaming (WebRTC + OpenCV) - 2024-12-09
 - [x] Emulator gap completion (physics, encoders, config, microphone) - 2024-12-09
 - [x] Emulator audio integration (wire up audio_enabled config) - 2024-12-09
+- [x] Speech synthesis (TTS via NanoGPT + SpeakAction) - 2024-12-10
 
 ## In Progress
 - [ ] None (ready for next feature)
 
 ## Up Next
-- [ ] Speech recognition and synthesis
+- [ ] Speech recognition streaming (Pi -> Server STT)
 - [ ] Additional behavior sets
 - [ ] Dashboard/web UI for monitoring
 

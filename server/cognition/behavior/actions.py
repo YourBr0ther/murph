@@ -171,6 +171,101 @@ class PlaySoundAction(ActionNode):
         return Status.RUNNING
 
 
+class SpeakAction(ActionNode):
+    """
+    Speak a phrase using TTS.
+
+    Unlike PlaySoundAction which plays pre-recorded files, SpeakAction
+    synthesizes speech dynamically using the TTS API.
+
+    Voice personality: Wall-E/BMO/BB-8 style - mostly beeps and boops
+    with occasional simple words.
+
+    Args:
+        text: Text or phrase key to speak (e.g., "greeting", "happy", or raw text)
+        emotion: Emotional tone (uses current mood if None)
+        wait_for_completion: Block until speech estimated complete
+    """
+
+    # Phrase mapping for common robot utterances (Wall-E/BMO style)
+    PHRASES: dict[str, str] = {
+        "greeting": "beep boop, hello!",
+        "happy": "wheee!",
+        "sad": "aww...",
+        "curious": "hmm?",
+        "scared": "eep!",
+        "affection": "I like you",
+        "playful": "boop boop boop!",
+        "sleepy": "zzz...",
+        "alert": "oh!",
+        "confused": "buh?",
+        "excited": "ooh ooh!",
+        "goodbye": "bye bye!",
+        "yes": "uh huh!",
+        "no": "nuh uh",
+        "thanks": "beep!",
+    }
+
+    # Estimated durations for phrases (seconds)
+    PHRASE_DURATIONS: dict[str, float] = {
+        "greeting": 1.5,
+        "happy": 0.8,
+        "sad": 1.0,
+        "curious": 0.6,
+        "scared": 0.5,
+        "affection": 1.2,
+        "playful": 1.0,
+        "sleepy": 1.5,
+        "alert": 0.4,
+        "confused": 0.5,
+        "excited": 0.8,
+        "goodbye": 1.0,
+        "yes": 0.6,
+        "no": 0.5,
+        "thanks": 0.4,
+    }
+    DEFAULT_DURATION = 1.0
+
+    def __init__(
+        self,
+        text: str,
+        emotion: str | None = None,
+        wait_for_completion: bool = True,
+    ) -> None:
+        # Truncate long text for node name
+        display_text = text[:20] + "..." if len(text) > 20 else text
+        name = f"Speak({display_text})"
+        super().__init__(name)
+
+        # Resolve phrase key to text if it's a known phrase
+        self._text = self.PHRASES.get(text, text)
+        self._phrase_key = text if text in self.PHRASES else None
+        self._emotion = emotion
+        self._wait = wait_for_completion
+
+        # Calculate duration: use phrase duration or estimate from text length
+        if self._phrase_key:
+            self._duration = self.PHRASE_DURATIONS.get(
+                self._phrase_key, self.DEFAULT_DURATION
+            )
+        else:
+            # Estimate ~100ms per character
+            self._duration = max(0.5, len(self._text) * 0.1)
+
+        self._params = {
+            "action": "speak",
+            "text": self._text,
+            "emotion": self._emotion,
+            "phrase_key": self._phrase_key,
+        }
+
+    def update(self) -> Status:
+        """Wait for estimated speech duration to complete."""
+        if self._wait and self.elapsed_time() < self._duration:
+            return Status.RUNNING
+        return Status.SUCCESS
+
+
 class SetExpressionAction(ActionNode):
     """
     Set the robot's facial expression.

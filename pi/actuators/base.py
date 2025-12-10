@@ -149,3 +149,24 @@ class AudioController(Actuator):
     def get_current_sound(self) -> str | None:
         """Get the name of the currently playing sound, if any."""
         pass
+
+    async def play_audio_data(
+        self,
+        audio_data: bytes,
+        audio_format: str = "wav",
+        sample_rate: int = 22050,
+        volume: float = 1.0,
+    ) -> None:
+        """
+        Play raw audio data (for TTS output).
+
+        Optional method - implementations can override for TTS support.
+
+        Args:
+            audio_data: Raw audio bytes (WAV format expected)
+            audio_format: Format ("wav", "mp3", "pcm")
+            sample_rate: Sample rate in Hz
+            volume: Volume level 0.0-1.0
+        """
+        # Default implementation does nothing - subclasses can override
+        pass
