@@ -53,6 +53,11 @@ class LLMConfig:
     # Behavior reasoning
     reasoning_score_threshold: float = 0.3  # Consult LLM if score diff < this
 
+    # Voice command settings
+    voice_commands_enabled: bool = True
+    voice_wake_words: list[str] | None = None  # Default: ["murph", "murphy"]
+    voice_llm_fallback: bool = True  # Use LLM for ambiguous commands
+
     @classmethod
     def from_env(cls) -> "LLMConfig":
         """
@@ -74,6 +79,9 @@ class LLMConfig:
             MURPH_LLM_CACHE_TTL: Cache TTL (seconds)
             MURPH_LLM_TIMEOUT: Request timeout (seconds)
             MURPH_LLM_REASONING_THRESHOLD: Score threshold for reasoning
+            MURPH_VOICE_COMMANDS_ENABLED: Enable voice commands
+            MURPH_VOICE_WAKE_WORDS: Comma-separated wake words
+            MURPH_VOICE_LLM_FALLBACK: Use LLM for ambiguous commands
         """
         return cls(
             provider=os.getenv("MURPH_LLM_PROVIDER", "ollama"),  # type: ignore
@@ -94,6 +102,9 @@ class LLMConfig:
             speech_enabled=os.getenv("MURPH_SPEECH_ENABLED", "true").lower() == "true",
             tts_model=os.getenv("MURPH_TTS_MODEL", "kokoro-82m"),
             stt_model=os.getenv("MURPH_STT_MODEL", "whisper-large-v3"),
+            voice_commands_enabled=os.getenv("MURPH_VOICE_COMMANDS_ENABLED", "true").lower() == "true",
+            voice_wake_words=os.getenv("MURPH_VOICE_WAKE_WORDS", "").split(",") if os.getenv("MURPH_VOICE_WAKE_WORDS") else None,
+            voice_llm_fallback=os.getenv("MURPH_VOICE_LLM_FALLBACK", "true").lower() == "true",
         )
 
     def validate(self) -> list[str]:

@@ -53,6 +53,7 @@ class MessageType(IntEnum):
     SPEECH_COMMAND = 51       # Server -> Pi: TTS audio to play
     VOICE_ACTIVITY = 52       # Pi -> Server: VAD state changes
     AUDIO_DATA = 53           # Pi -> Server: Raw audio chunks
+    SIMULATED_TRANSCRIPTION = 54  # Emulator -> Server: Simulated voice text (bypasses STT)
 
 
 # =============================================================================
@@ -514,6 +515,31 @@ class AudioDataMessage:
             channels=data.get("channels", 1),
             chunk_index=data.get("chunk_index", 0),
             is_final=data.get("is_final", False),
+            timestamp_ms=data.get("timestamp_ms", 0),
+        )
+
+
+@dataclass
+class SimulatedTranscription:
+    """Simulated transcription from emulator (bypasses STT)."""
+
+    text: str = ""
+    timestamp_ms: int = 0
+
+    def __post_init__(self) -> None:
+        if self.timestamp_ms == 0:
+            self.timestamp_ms = int(time.time() * 1000)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "text": self.text,
+            "timestamp_ms": self.timestamp_ms,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> SimulatedTranscription:
+        return cls(
+            text=data.get("text", ""),
             timestamp_ms=data.get("timestamp_ms", 0),
         )
 

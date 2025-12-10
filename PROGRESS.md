@@ -27,6 +27,7 @@
 - [x] LLM provider tests (Ollama + NanoGPT providers) - 2024-12-10
 - [x] Speech recognition streaming (Pi -> Server STT via WebRTC) - 2024-12-10
 - [x] Dashboard/web UI for monitoring (real-time state, controls) - 2024-12-10
+- [x] Voice command system (wake word, keyword parsing, LLM fallback) - 2024-12-10
 
 ## In Progress
 - [ ] None (ready for next feature)
@@ -34,10 +35,9 @@
 ## Up Next
 - [ ] Additional behavior sets
 - [ ] Memory consolidation / LLM context building
-- [ ] Voice command / conversation system
 
 ## Test Coverage
-- 985 tests passing (+30 new tests added 2024-12-10, 0 skipped)
+- 1027 tests passing (+42 new tests added 2024-12-10, 0 skipped)
 
 ## Blockers / Notes
 - None

@@ -41,6 +41,7 @@ from .video import FrameBuffer, VideoReceiver, VisionProcessor
 
 if TYPE_CHECKING:
     from .llm.services.speech_service import SpeechService
+    from .llm.services.voice_command_service import VoiceCommandService
     from .llm import BehaviorReasoner, LLMConfig, LLMService, VisionAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -99,6 +100,7 @@ class CognitionOrchestrator:
             on_connection_change=self._on_connection_change,
             on_webrtc_offer=self._on_webrtc_offer,
             on_webrtc_ice_candidate=self._on_webrtc_ice_candidate,
+            on_simulated_transcription=self._on_transcription,  # Reuse transcription callback
         )
 
         # Action dispatch (bridges executor to Pi)
@@ -124,6 +126,7 @@ class CognitionOrchestrator:
         self._llm_service: LLMService | None = None
         self._vision_analyzer: VisionAnalyzer | None = None
         self._behavior_reasoner: BehaviorReasoner | None = None
+        self._voice_command_service: VoiceCommandService | None = None
 
         # Needs system (cognition)
         self._needs_system = NeedsSystem()
@@ -233,6 +236,15 @@ class CognitionOrchestrator:
             self._speech_service = SpeechService(self._llm_config)
             self._audio_receiver.set_speech_service(self._speech_service)
             logger.info("Speech service initialized for STT")
+
+        # Initialize voice command service
+        from .llm.services.voice_command_service import VoiceCommandService
+
+        self._voice_command_service = VoiceCommandService(
+            llm_service=self._llm_service,
+            config=self._llm_config,
+        )
+        logger.info("Voice command service initialized")
 
         logger.info(f"LLM integration initialized (provider: {self._llm_config.provider})")
 
@@ -535,7 +547,7 @@ class CognitionOrchestrator:
         """
         Callback for transcribed speech from AudioReceiver.
 
-        Updates world context with the heard text.
+        Updates world context with the heard text and processes voice commands.
 
         Args:
             text: Transcribed speech text
@@ -543,6 +555,179 @@ class CognitionOrchestrator:
         logger.info(f"Heard speech: '{text}'")
         self._world_context.last_heard_text = text
         self._world_context.time_since_last_speech = 0.0
+
+        # Process voice command asynchronously
+        if self._voice_command_service:
+            asyncio.create_task(self._process_voice_command(text))
+
+    async def _process_voice_command(self, text: str) -> None:
+        """
+        Process transcribed speech for voice commands.
+
+        Args:
+            text: Transcribed speech text
+        """
+        if not self._voice_command_service:
+            return
+
+        try:
+            from .llm.services.voice_command_service import CommandType
+
+            result = await self._voice_command_service.process_speech(
+                text=text,
+                world_context=self._world_context,
+                needs_system=self._needs_system,
+            )
+
+            if result is None:
+                # Not a command for Murph (no wake word)
+                return
+
+            logger.info(
+                f"Voice command result: action={result.command.action if result.command else 'none'}, "
+                f"response='{result.response_text}'"
+            )
+
+            # Update needs based on social interaction
+            for need_name, delta in result.need_adjustments.items():
+                if delta > 0:
+                    self._needs_system.satisfy_need(need_name, delta)
+                else:
+                    self._needs_system.deplete_need(need_name, abs(delta))
+
+            # Execute command based on type
+            if result.command:
+                if result.execute_immediately:
+                    # Direct execution (speak, stop)
+                    await self._execute_direct_command(result.command)
+                elif result.command.command_type == CommandType.BEHAVIOR_TRIGGER:
+                    # Trigger behavior via evaluator
+                    try:
+                        await self.request_behavior(result.command.action)
+                    except ValueError as e:
+                        logger.warning(f"Could not trigger behavior: {e}")
+                elif result.command.command_type == CommandType.FEEDBACK:
+                    # Feedback already handled via need adjustments
+                    pass
+
+            # Always respond with speech if we have a response
+            if result.response_text:
+                await self._speak_response(result.response_text)
+
+        except Exception as e:
+            logger.error(f"Voice command processing error: {e}", exc_info=True)
+
+    async def _execute_direct_command(self, command: Any) -> None:
+        """
+        Execute a direct action command (bypassing behavior system).
+
+        Args:
+            command: VoiceCommand to execute
+        """
+        from .llm.services.voice_command_service import VoiceCommand
+
+        if not isinstance(command, VoiceCommand):
+            return
+
+        if command.action == "stop":
+            # Stop current behavior
+            if self._executor.is_running:
+                current = self._executor.current_behavior
+                if current and current.interruptible:
+                    self._executor.interrupt()
+                    logger.info("Voice command: stopped current behavior")
+                else:
+                    logger.info("Voice command: behavior not interruptible")
+            else:
+                logger.info("Voice command: no behavior running to stop")
+        elif command.action == "speak":
+            # Speaking is handled by the response
+            pass
+        else:
+            logger.warning(f"Unknown direct action: {command.action}")
+
+    async def _speak_response(self, text: str) -> None:
+        """
+        Speak a response immediately via TTS.
+
+        Args:
+            text: Text to speak
+        """
+        if not self._speech_service:
+            logger.debug(f"Speech service unavailable, would say: '{text}'")
+            return
+
+        if not self._connection.is_connected:
+            logger.debug(f"Pi not connected, would say: '{text}'")
+            return
+
+        try:
+            # Get current mood for emotion
+            emotion = self._map_need_to_emotion()
+
+            # Synthesize speech
+            audio_data = await self._speech_service.synthesize(text, emotion)
+            if not audio_data:
+                logger.warning("TTS synthesis returned no audio")
+                return
+
+            # Send to Pi
+            from shared.messages import Command, MessageType, RobotMessage, SpeechCommand
+
+            audio_b64 = self._speech_service.encode_audio_base64(audio_data)
+            speech_cmd = SpeechCommand(
+                audio_data=audio_b64,
+                audio_format="wav",
+                sample_rate=22050,
+                volume=1.0,
+                emotion=emotion,
+                text=text[:50],  # Truncate for logging
+            )
+            msg = RobotMessage(
+                message_type=MessageType.SPEECH_COMMAND,
+                payload=Command(payload=speech_cmd),
+            )
+            await self._connection.send_message(msg)
+            logger.debug(f"Sent speech response: '{text[:30]}...'")
+
+        except Exception as e:
+            logger.error(f"Speech response error: {e}")
+
+    def _map_need_to_emotion(self) -> str:
+        """
+        Map current need state to emotion for TTS.
+
+        Returns:
+            Emotion string for TTS
+        """
+        most_urgent = self._needs_system.get_most_urgent_need()
+        if not most_urgent:
+            return "neutral"
+
+        emotion_map = {
+            "energy": "sleepy",
+            "curiosity": "curious",
+            "play": "playful",
+            "social": "happy",
+            "affection": "love",
+            "comfort": "neutral",
+            "safety": "scared",
+        }
+
+        # If the need is critical, use that emotion
+        if most_urgent.is_critical():
+            return emotion_map.get(most_urgent.name, "neutral")
+
+        # Otherwise check overall happiness
+        happiness = self._needs_system.get_happiness()
+        if happiness > 70:
+            return "happy"
+        elif happiness > 50:
+            return "playful"
+        elif happiness > 30:
+            return "neutral"
+        else:
+            return "sleepy"
 
     def _on_connection_change(self, connected: bool) -> None:
         """

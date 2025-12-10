@@ -993,6 +993,37 @@ class VirtualPi:
         asyncio.create_task(self._clear_event("shake", duration))
         asyncio.create_task(self._send_local_trigger("shake", 0.9))
 
+    async def inject_voice_text(self, text: str) -> None:
+        """
+        Inject simulated voice text (bypasses STT).
+
+        This sends text directly to the server as if it was transcribed,
+        allowing testing of voice commands without real microphone input.
+
+        Args:
+            text: The simulated transcribed text (e.g., "Murph, come here")
+        """
+        from shared.messages import (
+            MessageType,
+            RobotMessage,
+            SimulatedTranscription,
+        )
+
+        if not self._ws or not self._connected:
+            logger.warning("Cannot inject voice text: not connected to server")
+            return
+
+        msg = RobotMessage(
+            message_type=MessageType.SIMULATED_TRANSCRIPTION,
+            payload=SimulatedTranscription(text=text),
+        )
+
+        try:
+            await self._ws.send(msg.to_json())
+            logger.info(f"Injected voice text: '{text}'")
+        except Exception as e:
+            logger.error(f"Failed to inject voice text: {e}")
+
     async def _clear_event(self, event: str, duration: float) -> None:
         """Clear simulated event after duration."""
         await asyncio.sleep(duration)

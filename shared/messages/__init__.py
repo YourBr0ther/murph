@@ -25,6 +25,7 @@ from .types import (
     TouchData,
     # Audio/Speech messages
     AudioDataMessage,
+    SimulatedTranscription,
     VoiceActivityMessage,
     # Other messages
     Heartbeat,
@@ -75,6 +76,7 @@ __all__ = [
     "TouchData",
     # Audio/Speech messages
     "AudioDataMessage",
+    "SimulatedTranscription",
     "VoiceActivityMessage",
     # Other messages
     "Heartbeat",

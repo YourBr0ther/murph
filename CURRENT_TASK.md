@@ -3,52 +3,60 @@
 ## Status: Ready for Next Feature
 
 ## Previous Task Completed
-Dashboard/Web UI for Monitoring - 2024-12-10
+Voice Command System - 2024-12-10
 
 ## Next Feature Options (from PROGRESS.md)
 1. Additional behavior sets
 2. Memory consolidation / LLM context building
-3. Voice command / conversation system
 
 ## Notes
-Completed monitoring dashboard implementation:
+Completed voice command system implementation:
 
-### 1. Server-Side Infrastructure
-- `server/monitoring.py` - New FastAPI app for dashboard
-  - REST endpoints: `/api/status`, `/api/behaviors`, `/api/control/need`, `/api/control/trigger`
-  - WebSocket `/ws/monitor` for real-time state broadcast (2Hz)
-  - MonitoringServer class with broadcast loop
+### 1. Core Service
+- `server/llm/services/voice_command_service.py` - New voice command service
+  - Wake word detection ("murph", "murphy", "hey murph", "hey murphy")
+  - Keyword-based command parsing (approach, rest, play, stop, speak, feedback)
+  - LLM fallback for unmatched commands (via existing LLMService)
+  - Mood-based response generation (happy/tired/playful/neutral variants)
+  - Need adjustment calculations (social, affection)
 
-### 2. Orchestrator Extensions
-- `server/orchestrator.py` - Extended with dashboard support
-  - `_behavior_history` deque (max 10 entries)
-  - `get_extended_status()` - Full status with behavior suggestions
-  - `get_behavior_suggestions()` - Top N behaviors with scores
-  - `adjust_need()` - Dashboard control for needs
-  - `request_behavior()` - Dashboard control for triggering behaviors
-  - Modified cognition loop to handle requested behaviors
+### 2. Orchestrator Integration
+- `server/orchestrator.py` - Extended with voice command processing
+  - `_process_voice_command()` - Processes transcriptions through VoiceCommandService
+  - `_execute_direct_command()` - Handles immediate actions (stop, speak)
+  - `_speak_response()` - TTS synthesis with mood-based emotion
+  - Automatic need adjustments on voice interaction
 
-### 3. Dashboard Frontend
-- `server/static/dashboard/index.html` - Full-featured dashboard layout
-- `server/static/dashboard/dashboard.css` - Dark theme styling (matches emulator)
-- `server/static/dashboard/dashboard.js` - WebSocket client with auto-reconnect
+### 3. Context Triggers
+- `server/cognition/behavior/context.py` - Added computed triggers
+  - `addressed_by_name` - True when "murph" or "murphy" in speech
+  - `voice_command_pending` - True when recent speech detected
 
-### 4. Server Integration
-- `server/main.py` - Modified to start dashboard on port 8081
-  - Runs uvicorn alongside orchestrator
-  - Starts broadcast loop as background task
+### 4. Configuration
+- `server/llm/config.py` - Added voice command settings
+  - `voice_commands_enabled` (default: True)
+  - `voice_wake_words` (customizable)
+  - `voice_llm_fallback` (default: True)
 
-### Dashboard Features
-- Real-time status (server, Pi connection, current behavior)
-- Happiness gauge + mood badge
-- 7 need gauges with +/- adjustment buttons
-- Top 10 behavior suggestions with scores
-- Behavior trigger dropdown
-- Active triggers display
-- Person/environment/physical state panels
-- Behavior history with status indicators
-- Collapsible context panel (timing, spatial)
+### 5. Emulator Support
+- `emulator/static/index.html` - Voice input text field + "Say" button
+- `emulator/static/emulator.js` - `sendVoiceCommand()` function
+- `emulator/app.py` - WebSocket handler for `voice_input` messages
+- `emulator/virtual_pi.py` - `inject_voice_text()` method
+- `shared/messages/types.py` - `SimulatedTranscription` message type
+- `server/communication/websocket_server.py` - Handler for simulated transcriptions
+
+### Supported Commands
+| Command | Keywords | Action |
+|---------|----------|--------|
+| Come here | "come here", "come over" | Triggers approach behavior |
+| Rest/Sleep | "sleep", "rest" | Triggers rest behavior |
+| Play | "play", "let's play" | Triggers play behavior |
+| Stop | "stop", "halt" | Stops current behavior |
+| Speak | "say something" | TTS random phrase |
+| Good Murph | "good boy/girl/murph" | Positive feedback (+affection, +social) |
+| Bad Murph | "bad boy/girl/murph" | Negative feedback (-affection, +social) |
 
 ### Test Coverage
-- 985 tests passing (+30 new tests, 0 skipped)
-- Fixed PyAV compatibility (time_base now uses Fraction)
+- 42 new tests in `tests/test_server/test_voice_command_service.py`
+- 1027 total tests passing (1 flaky VAD timing test unrelated to feature)

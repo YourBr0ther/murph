@@ -562,3 +562,44 @@ section {
 .robot.shaking {
     animation: shake 0.1s ease infinite;
 }
+
+/* Voice Controls */
+.voice-controls {
+    grid-column: 1;
+}
+
+.voice-input-group {
+    display: flex;
+    gap: 10px;
+}
+
+.voice-input-group input {
+    flex: 1;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--bg-card);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.95rem;
+    transition: border-color 0.2s ease;
+}
+
+.voice-input-group input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.voice-input-group input::placeholder {
+    color: var(--text-muted);
+}
+
+.btn.voice:hover {
+    background: #a371f7;
+}
+
+.voice-hints {
+    margin-top: 12px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+}

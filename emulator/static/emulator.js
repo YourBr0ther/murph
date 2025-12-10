@@ -310,6 +310,16 @@ function simulateShake() {
     setTimeout(() => robot.classList.remove('shaking'), 1000);
 }
 
+function sendVoiceCommand() {
+    const input = document.getElementById('voiceInput');
+    const text = input.value.trim();
+    if (text) {
+        sendCommand('voice_input', { text });
+        input.value = '';
+        console.log('Voice command sent:', text);
+    }
+}
+
 function flashButton(btn) {
     if (!btn) return;
     btn.style.transform = 'scale(0.95)';

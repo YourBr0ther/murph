@@ -211,6 +211,11 @@ async def handle_ui_command(data: dict[str, Any]) -> None:
     elif cmd_type == "shake":
         virtual_pi.simulate_shake()
 
+    elif cmd_type == "voice_input":
+        text = data.get("text", "")
+        if text:
+            await virtual_pi.inject_voice_text(text)
+
 
 def get_fallback_html() -> str:
     """Return fallback HTML if static files not found."""

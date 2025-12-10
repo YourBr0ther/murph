@@ -137,6 +137,16 @@ class WorldContext:
             # Speech triggers
             "heard_speech": self.time_since_last_speech < 5.0,  # Recent speech
             "heard_speech_recent": self.time_since_last_speech < 2.0,  # Very recent
+            "addressed_by_name": (
+                self.last_heard_text is not None
+                and any(
+                    w in self.last_heard_text.lower() for w in ["murph", "murphy"]
+                )
+            ),
+            "voice_command_pending": (
+                self.last_heard_text is not None
+                and self.time_since_last_speech < 1.0
+            ),
             # Memory-derived triggers
             "familiar_person_remembered": (
                 self.person_detected and self.remembered_person_name is not None
@@ -201,7 +211,8 @@ class WorldContext:
             "being_petted", "recent_bump", "low_light", "loud_environment",
             "near_edge", "near_charger", "lonely", "very_lonely",
             # Speech triggers
-            "heard_speech", "heard_speech_recent",
+            "heard_speech", "heard_speech_recent", "addressed_by_name",
+            "voice_command_pending",
             # Memory-derived triggers
             "familiar_person_remembered", "positive_history", "negative_sentiment",
             "positive_sentiment", "recently_greeted", "recently_played", "recently_petted",

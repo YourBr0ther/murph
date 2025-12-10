@@ -90,6 +90,21 @@
                 </div>
             </section>
 
+            <section class="voice-controls">
+                <h2>Voice Command</h2>
+                <div class="voice-input-group">
+                    <input type="text" id="voiceInput" placeholder="Murph, come here..."
+                           onkeypress="if(event.key==='Enter') sendVoiceCommand()">
+                    <button onclick="sendVoiceCommand()" class="btn voice">
+                        <span class="icon">🎤</span>
+                        Say
+                    </button>
+                </div>
+                <div class="voice-hints">
+                    Try: "Murph, come here" | "Murph, play" | "Murph, sleep" | "Good Murph!"
+                </div>
+            </section>
+
             <section class="motor-panel">
                 <h2>Motor State</h2>
                 <div class="motor-display">

@@ -26,6 +26,7 @@ from shared.messages import (
     MessageType,
     RobotMessage,
     SensorData,
+    SimulatedTranscription,
     WebRTCOffer,
     WebRTCIceCandidate,
     create_command_ack,
@@ -55,6 +56,7 @@ class PiConnectionManager:
         on_connection_change: Callable[[bool], None] | None = None,
         on_webrtc_offer: Callable[[WebRTCOffer], Any] | None = None,
         on_webrtc_ice_candidate: Callable[[WebRTCIceCandidate], Any] | None = None,
+        on_simulated_transcription: Callable[[str], None] | None = None,
     ) -> None:
         """
         Initialize the connection manager.
@@ -67,6 +69,7 @@ class PiConnectionManager:
             on_connection_change: Callback when connection state changes
             on_webrtc_offer: Callback for WebRTC SDP offer from Pi
             on_webrtc_ice_candidate: Callback for WebRTC ICE candidates from Pi
+            on_simulated_transcription: Callback for simulated voice text from emulator
         """
         self._host = host
         self._port = port
@@ -75,6 +78,7 @@ class PiConnectionManager:
         self._on_connection_change = on_connection_change
         self._on_webrtc_offer = on_webrtc_offer
         self._on_webrtc_ice_candidate = on_webrtc_ice_candidate
+        self._on_simulated_transcription = on_simulated_transcription
 
         self._server = None
         self._connection: WebSocketServerProtocol | None = None
@@ -199,6 +203,10 @@ class PiConnectionManager:
             elif msg.message_type == MessageType.WEBRTC_ICE_CANDIDATE:
                 if isinstance(msg.payload, WebRTCIceCandidate) and self._on_webrtc_ice_candidate:
                     self._on_webrtc_ice_candidate(msg.payload)
+
+            elif msg.message_type == MessageType.SIMULATED_TRANSCRIPTION:
+                if isinstance(msg.payload, SimulatedTranscription) and self._on_simulated_transcription:
+                    self._on_simulated_transcription(msg.payload.text)
 
         except Exception as e:
             logger.error(f"Failed to parse message: {e}")
