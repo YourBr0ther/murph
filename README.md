@@ -186,7 +186,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [FaceNet-PyTorch](https://github.com/timesler/facenet-pytorch) - Face recognition
 - [Ollama](https://ollama.ai/) - Local LLM inference
 - [aiortc](https://github.com/aiortc/aiortc) - WebRTC for Python
-
----
-
-**Note:** This project is under active development. Hardware testing phase is next!
