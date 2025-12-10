@@ -73,9 +73,17 @@ poetry run python -m emulator.app
 
 Emulator UI at: `http://localhost:8080`
 
-## Development
+## Documentation
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed architecture documentation.
+| Document | Description |
+|----------|-------------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture and design |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Server & Pi installation guide |
+| [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md) | Wiring, BOM, assembly |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Environment variables reference |
+| [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | WebSocket protocol & REST API |
+
+## Development
 
 ### Project Structure
 
