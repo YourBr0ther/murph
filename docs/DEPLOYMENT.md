@@ -18,18 +18,40 @@ Step-by-step deployment instructions for server, Raspberry Pi, and emulator.
 
 ### Server Requirements
 
-- Python 3.11+
-- 4GB+ RAM (8GB recommended for Ollama)
-- Linux, macOS, or Windows with WSL2
-- Network access to Raspberry Pi
+| Requirement | Minimum | Recommended |
+|-------------|---------|-------------|
+| **OS** | Ubuntu 22.04 LTS, Debian 12, macOS 13+ | Ubuntu 24.04 LTS |
+| **Python** | 3.11 | 3.11 or 3.12 |
+| **RAM** | 4GB | 8GB+ (for Ollama) |
+| **Storage** | 2GB | 10GB+ (for LLM models) |
+| **Network** | LAN access to Pi | Gigabit Ethernet |
+
+**Supported Operating Systems:**
+- Ubuntu 22.04 LTS / 24.04 LTS
+- Debian 12 (Bookworm)
+- macOS 13 Ventura / 14 Sonoma / 15 Sequoia
+- Windows 11 with WSL2 (Ubuntu)
+- Fedora 39/40 (community tested)
 
 ### Raspberry Pi Requirements
 
-- Raspberry Pi 5 (4GB+ recommended)
-- Raspberry Pi OS (64-bit, Bookworm)
-- Camera Module 3 enabled
-- I2C and I2S interfaces enabled
-- Network connection to server
+| Requirement | Minimum | Recommended |
+|-------------|---------|-------------|
+| **Hardware** | Raspberry Pi 5 (4GB) | Raspberry Pi 5 (8GB) |
+| **OS** | Raspberry Pi OS Bookworm (64-bit) | Latest Raspberry Pi OS |
+| **Storage** | 16GB microSD | 32GB+ A2-rated microSD |
+| **Power** | 5V/3A USB-C | Official 27W Pi 5 PSU |
+
+**Required Pi OS Version:**
+- Raspberry Pi OS (64-bit) based on Debian 12 Bookworm
+- Kernel 6.1+ (for Pi 5 support)
+- Released: October 2023 or later
+
+**Required Hardware Interfaces:**
+- Camera (CSI) - enabled via raspi-config
+- I2C - enabled via raspi-config
+- I2S - enabled via /boot/firmware/config.txt
+- SPI - optional, enable if needed
 
 ---
 
