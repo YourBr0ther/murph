@@ -189,22 +189,39 @@ source ~/.bashrc
 ```bash
 git clone git@github.com:YourBr0ther/murph.git
 cd murph
-poetry install --with pi
+poetry install
 ```
 
-### 7. Configure Server Connection
-
-Create `.env` file:
+**Note:** Pi hardware libraries (picamera2, RPi.GPIO, smbus2, luma.oled) are installed via apt on Raspberry Pi OS, not Poetry. These are pre-installed or available via:
 ```bash
-MURPH_SERVER_HOST=192.168.1.100  # Your server IP
-MURPH_SERVER_PORT=8765
+sudo apt install python3-picamera2 python3-rpi.gpio python3-smbus
+pip install luma.oled
 ```
 
-### 8. Run Pi Client
+### 7. Run Pi Client
+
+The Pi client uses command-line arguments for configuration:
 
 ```bash
-poetry run python -m pi.main
+# View all options
+poetry run python -m pi.main --help
+
+# Connect to server with mock hardware (testing)
+poetry run python -m pi.main --host 192.168.1.100
+
+# Connect to server with real hardware (production)
+poetry run python -m pi.main --host 192.168.1.100 --real-hardware
+
+# With verbose logging
+poetry run python -m pi.main --host 192.168.1.100 --real-hardware -v
 ```
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--host` | localhost | Server brain hostname/IP |
+| `--port` | 8765 | Server WebSocket port |
+| `--real-hardware` | false | Use real Pi hardware (not mocks) |
+| `-v, --verbose` | false | Enable debug logging |
 
 ---
 
@@ -289,8 +306,8 @@ Type=simple
 User=pi
 WorkingDirectory=/home/pi/murph
 Environment=PATH=/home/pi/.local/bin:/usr/bin
-Environment=MURPH_SERVER_HOST=192.168.1.100
-ExecStart=/home/pi/.local/bin/poetry run python -m pi.main
+# Configure server IP below (replace 192.168.1.100 with your server)
+ExecStart=/home/pi/.local/bin/poetry run python -m pi.main --host 192.168.1.100 --real-hardware
 Restart=always
 RestartSec=10
 
