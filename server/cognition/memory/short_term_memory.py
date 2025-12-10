@@ -238,6 +238,23 @@ class ShortTermMemory:
         """Get all events of a specific type."""
         return [e for e in self._events if e.event_type == event_type]
 
+    def get_events_with_participant(
+        self, person_id: str, limit: int = 20
+    ) -> list[EventMemory]:
+        """
+        Get events involving a specific participant.
+
+        Args:
+            person_id: The person's ID
+            limit: Maximum number of events to return
+
+        Returns:
+            List of events involving this person, newest first
+        """
+        events = [e for e in self._events if person_id in e.participants]
+        events.sort(key=lambda e: e.timestamp, reverse=True)
+        return events[:limit]
+
     def was_event_recent(self, event_type: str, within_seconds: float = 60.0) -> bool:
         """
         Check if an event of this type happened recently.

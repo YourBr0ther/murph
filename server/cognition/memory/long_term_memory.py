@@ -14,6 +14,7 @@ from server.storage import (
     Database,
     EventModel,
     FaceEmbeddingModel,
+    InsightModel,
     ObjectModel,
     PersonModel,
     SpatialLandmarkModel,
@@ -21,7 +22,7 @@ from server.storage import (
     SpatialZoneModel,
 )
 
-from .memory_types import EventMemory, ObjectMemory, PersonMemory
+from .memory_types import EventMemory, InsightMemory, ObjectMemory, PersonMemory
 from .spatial_types import (
     SpatialLandmark,
     SpatialMapMemory,
@@ -893,3 +894,223 @@ class LongTermMemory:
             "zones": zones_synced,
             "observations": observations_synced,
         }
+
+    # ==================== Insight Operations ====================
+
+    async def save_insight(self, insight: InsightMemory) -> bool:
+        """
+        Save an insight to long-term memory.
+
+        Args:
+            insight: InsightMemory to save
+
+        Returns:
+            True if saved (new insight), False if already exists
+        """
+        async with self._db.session() as session:
+            # Check if already exists
+            result = await session.execute(
+                select(InsightModel).where(InsightModel.insight_id == insight.insight_id)
+            )
+            if result.scalar_one_or_none() is not None:
+                return False  # Already saved
+
+            model = InsightModel(
+                insight_id=insight.insight_id,
+                insight_type=insight.insight_type,
+                subject_type=insight.subject_type,
+                subject_id=insight.subject_id,
+                content=insight.content,
+                summary=insight.summary,
+                source_event_ids=insight.source_event_ids,
+                created_at=datetime.fromtimestamp(insight.created_at),
+                confidence=insight.confidence,
+                relevance_score=insight.relevance_score,
+                tags=list(insight.tags),
+            )
+            session.add(model)
+            await session.commit()
+            logger.debug(f"Saved insight: {insight.insight_type} ({insight.insight_id})")
+            return True
+
+    async def get_insight(self, insight_id: str) -> InsightMemory | None:
+        """Load an insight from long-term memory."""
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(InsightModel).where(InsightModel.insight_id == insight_id)
+            )
+            model = result.scalar_one_or_none()
+            return InsightMemory.from_state(model.to_dict()) if model else None
+
+    async def get_insights_for_subject(
+        self,
+        subject_type: str,
+        subject_id: str | None = None,
+        insight_type: str | None = None,
+        limit: int = 10,
+    ) -> list[InsightMemory]:
+        """
+        Get insights related to a subject.
+
+        Args:
+            subject_type: Type of subject ("person", "behavior", etc.)
+            subject_id: Optional specific subject ID
+            insight_type: Optional filter by insight type
+            limit: Maximum number of insights to return
+
+        Returns:
+            List of InsightMemory objects
+        """
+        async with self._db.session() as session:
+            query = select(InsightModel).where(InsightModel.subject_type == subject_type)
+
+            if subject_id is not None:
+                query = query.where(InsightModel.subject_id == subject_id)
+
+            if insight_type is not None:
+                query = query.where(InsightModel.insight_type == insight_type)
+
+            query = query.order_by(InsightModel.created_at.desc()).limit(limit)
+
+            result = await session.execute(query)
+            models = result.scalars().all()
+            return [InsightMemory.from_state(m.to_dict()) for m in models]
+
+    async def get_recent_insights(
+        self,
+        insight_type: str | None = None,
+        limit: int = 20,
+    ) -> list[InsightMemory]:
+        """
+        Get the most recent insights.
+
+        Args:
+            insight_type: Optional filter by insight type
+            limit: Maximum number of insights to return
+
+        Returns:
+            List of InsightMemory objects
+        """
+        async with self._db.session() as session:
+            query = select(InsightModel)
+
+            if insight_type is not None:
+                query = query.where(InsightModel.insight_type == insight_type)
+
+            query = query.order_by(InsightModel.created_at.desc()).limit(limit)
+
+            result = await session.execute(query)
+            models = result.scalars().all()
+            return [InsightMemory.from_state(m.to_dict()) for m in models]
+
+    async def get_relevant_insights(
+        self,
+        min_relevance: float = 0.1,
+        limit: int = 20,
+    ) -> list[InsightMemory]:
+        """
+        Get insights that are still relevant (above relevance threshold).
+
+        Args:
+            min_relevance: Minimum relevance score
+            limit: Maximum number of insights to return
+
+        Returns:
+            List of InsightMemory objects ordered by relevance
+        """
+        async with self._db.session() as session:
+            query = (
+                select(InsightModel)
+                .where(InsightModel.relevance_score >= min_relevance)
+                .order_by(InsightModel.relevance_score.desc())
+                .limit(limit)
+            )
+
+            result = await session.execute(query)
+            models = result.scalars().all()
+            return [InsightMemory.from_state(m.to_dict()) for m in models]
+
+    async def decay_insight_relevance(self, decay_rate: float = 0.01) -> int:
+        """
+        Decay relevance scores for all insights.
+
+        Called periodically to reduce relevance of old insights.
+
+        Args:
+            decay_rate: Amount to decay each insight's relevance
+
+        Returns:
+            Number of insights decayed
+        """
+        async with self._db.session() as session:
+            result = await session.execute(select(InsightModel))
+            models = result.scalars().all()
+
+            decayed_count = 0
+            for model in models:
+                new_relevance = max(0.0, model.relevance_score - decay_rate)
+                if new_relevance != model.relevance_score:
+                    model.relevance_score = new_relevance
+                    decayed_count += 1
+
+            await session.commit()
+
+            if decayed_count > 0:
+                logger.debug(f"Decayed relevance for {decayed_count} insights")
+
+            return decayed_count
+
+    async def prune_stale_insights(self, min_relevance: float = 0.1) -> int:
+        """
+        Remove insights that have fallen below the relevance threshold.
+
+        Args:
+            min_relevance: Minimum relevance score to keep
+
+        Returns:
+            Number of insights deleted
+        """
+        async with self._db.session() as session:
+            result = await session.execute(
+                select(InsightModel).where(InsightModel.relevance_score < min_relevance)
+            )
+            stale_insights = result.scalars().all()
+
+            deleted_count = len(stale_insights)
+            for model in stale_insights:
+                await session.delete(model)
+
+            await session.commit()
+
+            if deleted_count > 0:
+                logger.info(f"Pruned {deleted_count} stale insights")
+
+            return deleted_count
+
+    async def get_insight_stats(self) -> dict[str, Any]:
+        """Get statistics about stored insights."""
+        async with self._db.session() as session:
+            total_count = await session.scalar(
+                select(func.count()).select_from(InsightModel)
+            )
+
+            # Count by type
+            type_counts: dict[str, int] = {}
+            for insight_type in ["event_summary", "relationship_narrative", "behavior_reflection"]:
+                count = await session.scalar(
+                    select(func.count())
+                    .select_from(InsightModel)
+                    .where(InsightModel.insight_type == insight_type)
+                )
+                type_counts[insight_type] = count or 0
+
+            # Average relevance
+            avg_relevance = await session.scalar(
+                select(func.avg(InsightModel.relevance_score))
+            )
+
+            return {
+                "total": total_count or 0,
+                "by_type": type_counts,
+                "avg_relevance": float(avg_relevance) if avg_relevance else 0.0,
+            }

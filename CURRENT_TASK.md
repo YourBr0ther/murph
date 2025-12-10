@@ -3,60 +3,64 @@
 ## Status: Ready for Next Feature
 
 ## Previous Task Completed
-Voice Command System - 2024-12-10
+Memory Consolidation System - 2024-12-10
 
 ## Next Feature Options (from PROGRESS.md)
 1. Additional behavior sets
-2. Memory consolidation / LLM context building
+2. More behavior tree variants
 
 ## Notes
-Completed voice command system implementation:
+Completed memory consolidation system implementation:
 
-### 1. Core Service
-- `server/llm/services/voice_command_service.py` - New voice command service
-  - Wake word detection ("murph", "murphy", "hey murph", "hey murphy")
-  - Keyword-based command parsing (approach, rest, play, stop, speak, feedback)
-  - LLM fallback for unmatched commands (via existing LLMService)
-  - Mood-based response generation (happy/tired/playful/neutral variants)
-  - Need adjustment calculations (social, affection)
+### 1. Data Models
+- `server/storage/models.py` - Added InsightModel for persisting insights
+- `server/cognition/memory/memory_types.py` - Added InsightMemory dataclass
 
-### 2. Orchestrator Integration
-- `server/orchestrator.py` - Extended with voice command processing
-  - `_process_voice_command()` - Processes transcriptions through VoiceCommandService
-  - `_execute_direct_command()` - Handles immediate actions (stop, speak)
-  - `_speak_response()` - TTS synthesis with mood-based emotion
-  - Automatic need adjustments on voice interaction
+### 2. Consolidation Package
+- `server/cognition/memory/consolidation/` - New package with:
+  - `config.py` - ConsolidationConfig with timing/threshold settings
+  - `event_summarizer.py` - Groups and summarizes event clusters via LLM
+  - `relationship_builder.py` - Generates relationship narratives for people
+  - `experience_reflector.py` - Reflects on behavior outcomes (probabilistic)
+  - `consolidator.py` - MemoryConsolidator orchestrating all services
 
-### 3. Context Triggers
-- `server/cognition/behavior/context.py` - Added computed triggers
-  - `addressed_by_name` - True when "murph" or "murphy" in speech
-  - `voice_command_pending` - True when recent speech detected
+### 3. LLM Integration
+- `server/llm/prompts/consolidation_prompts.py` - Prompts for:
+  - Event summary generation
+  - Relationship narrative building
+  - Experience reflection
+  - Context summarization
+- `server/llm/services/context_builder.py` - Rich context building for LLM prompts
 
-### 4. Configuration
-- `server/llm/config.py` - Added voice command settings
-  - `voice_commands_enabled` (default: True)
-  - `voice_wake_words` (customizable)
-  - `voice_llm_fallback` (default: True)
+### 4. Long-Term Memory Extensions
+- `server/cognition/memory/long_term_memory.py` - Added insight CRUD operations:
+  - save_insight(), get_insight(), get_insights_for_subject()
+  - get_recent_insights(), get_relevant_insights()
+  - decay_insight_relevance(), prune_stale_insights()
 
-### 5. Emulator Support
-- `emulator/static/index.html` - Voice input text field + "Say" button
-- `emulator/static/emulator.js` - `sendVoiceCommand()` function
-- `emulator/app.py` - WebSocket handler for `voice_input` messages
-- `emulator/virtual_pi.py` - `inject_voice_text()` method
-- `shared/messages/types.py` - `SimulatedTranscription` message type
-- `server/communication/websocket_server.py` - Handler for simulated transcriptions
+### 5. Configuration
+- `server/llm/config.py` - Added consolidation settings:
+  - `consolidation_enabled` (default: True)
+  - `consolidation_tick_interval` (60s)
+  - `event_summarization_interval` (1 hour)
+  - `relationship_update_interval` (24 hours)
+  - `reflection_probability` (0.3)
 
-### Supported Commands
-| Command | Keywords | Action |
-|---------|----------|--------|
-| Come here | "come here", "come over" | Triggers approach behavior |
-| Rest/Sleep | "sleep", "rest" | Triggers rest behavior |
-| Play | "play", "let's play" | Triggers play behavior |
-| Stop | "stop", "halt" | Stops current behavior |
-| Speak | "say something" | TTS random phrase |
-| Good Murph | "good boy/girl/murph" | Positive feedback (+affection, +social) |
-| Bad Murph | "bad boy/girl/murph" | Negative feedback (-affection, +social) |
+### 6. Orchestrator Integration
+- `server/orchestrator.py` - Integration points:
+  - Consolidation tick in cognition loop (~60s)
+  - on_behavior_complete() for experience reflection
+  - consolidate_session() on shutdown
+
+### Key Features
+| Feature | Description |
+|---------|-------------|
+| Event Summarization | Clusters events by type/participant, generates summaries hourly |
+| Relationship Building | Tracks relationship trajectory, generates narratives daily |
+| Experience Reflection | 30% chance to reflect on behavior outcomes |
+| Context Builder | Builds rich prompts from memory for LLM reasoning |
+| Insight Decay | Relevance scores decay over time, stale insights pruned |
 
 ### Test Coverage
-- 42 new tests in `tests/test_server/test_voice_command_service.py`
-- 1027 total tests passing (1 flaky VAD timing test unrelated to feature)
+- 25 new tests in `tests/test_server/test_consolidation/`
+- 1052 total tests passing

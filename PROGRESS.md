@@ -28,16 +28,17 @@
 - [x] Speech recognition streaming (Pi -> Server STT via WebRTC) - 2024-12-10
 - [x] Dashboard/web UI for monitoring (real-time state, controls) - 2024-12-10
 - [x] Voice command system (wake word, keyword parsing, LLM fallback) - 2024-12-10
+- [x] Memory consolidation system (event summaries, relationships, reflections) - 2024-12-10
 
 ## In Progress
 - [ ] None (ready for next feature)
 
 ## Up Next
 - [ ] Additional behavior sets
-- [ ] Memory consolidation / LLM context building
+- [ ] More behavior tree variants
 
 ## Test Coverage
-- 1027 tests passing (+42 new tests added 2024-12-10, 0 skipped)
+- 1052 tests passing (+25 consolidation tests added 2024-12-10, 0 skipped)
 
 ## Blockers / Notes
 - None

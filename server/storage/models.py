@@ -316,3 +316,61 @@ class SpatialObservationModel(Base):
             "timestamp": self.timestamp.timestamp(),
             "confidence": self.confidence,
         }
+
+
+class InsightModel(Base):
+    """
+    LLM-generated insight stored in long-term memory.
+
+    Types:
+    - event_summary: Consolidated view of multiple events
+    - relationship_narrative: Story about relationship with a person
+    - behavior_reflection: Reflection on behavior outcomes
+
+    Subject types:
+    - person: Insight about a specific person
+    - behavior: Insight about a behavior pattern
+    - session: Insight about the current session
+    - general: General observation
+    """
+
+    __tablename__ = "insights"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    insight_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    insight_type: Mapped[str] = mapped_column(String(32), index=True)
+
+    # Subject of the insight
+    subject_type: Mapped[str] = mapped_column(String(32))
+    subject_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+
+    # The insight content
+    content: Mapped[str] = mapped_column(Text)
+    summary: Mapped[str] = mapped_column(String(256))
+
+    # Source events that led to this insight
+    source_event_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    confidence: Mapped[float] = mapped_column(Float, default=0.7)
+    relevance_score: Mapped[float] = mapped_column(Float, default=1.0)
+
+    # Tags for filtering
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for InsightMemory.from_state()."""
+        return {
+            "insight_id": self.insight_id,
+            "insight_type": self.insight_type,
+            "subject_type": self.subject_type,
+            "subject_id": self.subject_id,
+            "content": self.content,
+            "summary": self.summary,
+            "source_event_ids": self.source_event_ids or [],
+            "created_at": self.created_at.timestamp(),
+            "confidence": self.confidence,
+            "relevance_score": self.relevance_score,
+            "tags": self.tags or [],
+        }

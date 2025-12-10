@@ -40,6 +40,10 @@ from .perception.sensor_processor import SensorProcessor
 from .video import FrameBuffer, VideoReceiver, VisionProcessor
 
 if TYPE_CHECKING:
+    from .cognition.memory.consolidation import ConsolidationConfig, MemoryConsolidator
+    from .cognition.memory.long_term_memory import LongTermMemory
+    from .cognition.memory.memory_system import MemorySystem
+    from .llm.services.context_builder import ContextBuilder
     from .llm.services.speech_service import SpeechService
     from .llm.services.voice_command_service import VoiceCommandService
     from .llm import BehaviorReasoner, LLMConfig, LLMService, VisionAnalyzer
@@ -127,6 +131,13 @@ class CognitionOrchestrator:
         self._vision_analyzer: VisionAnalyzer | None = None
         self._behavior_reasoner: BehaviorReasoner | None = None
         self._voice_command_service: VoiceCommandService | None = None
+
+        # Memory integration (optional)
+        self._memory_system: MemorySystem | None = None
+        self._long_term_memory: LongTermMemory | None = None
+        self._memory_consolidator: MemoryConsolidator | None = None
+        self._context_builder: ContextBuilder | None = None
+        self._last_consolidation_tick: float = 0.0
 
         # Needs system (cognition)
         self._needs_system = NeedsSystem()
@@ -246,7 +257,56 @@ class CognitionOrchestrator:
         )
         logger.info("Voice command service initialized")
 
+        # Initialize memory consolidation if enabled
+        if self._llm_config.consolidation_enabled:
+            await self._init_memory_consolidation()
+
         logger.info(f"LLM integration initialized (provider: {self._llm_config.provider})")
+
+    async def _init_memory_consolidation(self) -> None:
+        """Initialize memory consolidation components."""
+        from .cognition.memory.consolidation import ConsolidationConfig, MemoryConsolidator
+        from .cognition.memory.long_term_memory import LongTermMemory
+        from .cognition.memory.memory_system import MemorySystem
+        from .llm.services.context_builder import ContextBuilder
+        from .storage import Database
+
+        # Create consolidation config from LLM config
+        consolidation_config = ConsolidationConfig(
+            enabled=self._llm_config.consolidation_enabled,
+            consolidation_tick_interval=self._llm_config.consolidation_tick_interval,
+            event_summarization_interval=self._llm_config.event_summarization_interval,
+            relationship_update_interval=self._llm_config.relationship_update_interval,
+            reflection_probability=self._llm_config.reflection_probability,
+        )
+
+        # Initialize database and long-term memory
+        database = Database()
+        await database.initialize()
+        self._long_term_memory = LongTermMemory(database)
+        await self._long_term_memory.initialize()
+
+        # Initialize memory system with long-term storage
+        self._memory_system = MemorySystem(long_term=self._long_term_memory)
+        await self._memory_system.initialize_from_database()
+
+        # Initialize context builder
+        self._context_builder = ContextBuilder(
+            memory_system=self._memory_system,
+            long_term_memory=self._long_term_memory,
+            llm_service=self._llm_service,
+            config=self._llm_config,
+        )
+
+        # Initialize memory consolidator
+        self._memory_consolidator = MemoryConsolidator(
+            llm_service=self._llm_service,
+            memory_system=self._memory_system,
+            long_term_memory=self._long_term_memory,
+            config=consolidation_config,
+        )
+
+        logger.info("Memory consolidation initialized")
 
     async def stop(self) -> None:
         """
@@ -271,6 +331,19 @@ class CognitionOrchestrator:
                 pass
 
         self._tasks.clear()
+
+        # Run final memory consolidation
+        if self._memory_consolidator:
+            try:
+                await self._memory_consolidator.consolidate_session()
+                logger.info("Memory consolidation complete")
+            except Exception as e:
+                logger.error(f"Memory consolidation error: {e}")
+
+        # Shutdown memory system (sync to database)
+        if self._memory_system:
+            await self._memory_system.shutdown()
+            logger.info("Memory system shutdown")
 
         # Stop LLM service
         if self._llm_service:
@@ -404,6 +477,13 @@ class CognitionOrchestrator:
                     if best:
                         self._start_behavior(best)
 
+                # Periodic memory consolidation tick
+                if self._memory_consolidator:
+                    current_time = time.time()
+                    if current_time - self._last_consolidation_tick > self._llm_config.consolidation_tick_interval:
+                        await self._memory_consolidator.tick()
+                        self._last_consolidation_tick = current_time
+
                 self._last_cognition_time = time.time()
 
             except Exception as e:
@@ -513,6 +593,19 @@ class CognitionOrchestrator:
             logger.info(
                 f"Behavior '{result.behavior_name}' was interrupted "
                 f"(duration: {result.duration:.1f}s)"
+            )
+
+        # Trigger experience reflection (async, non-blocking)
+        if self._memory_consolidator and behavior:
+            need_changes = behavior.need_effects if result.succeeded() else {}
+            asyncio.create_task(
+                self._memory_consolidator.on_behavior_complete(
+                    behavior_name=result.behavior_name,
+                    result=status,
+                    duration=result.duration,
+                    context_snapshot=self._world_context.get_state(),
+                    need_changes=need_changes,
+                )
             )
 
         # Clear current behavior from context

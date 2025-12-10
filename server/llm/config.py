@@ -58,6 +58,13 @@ class LLMConfig:
     voice_wake_words: list[str] | None = None  # Default: ["murph", "murphy"]
     voice_llm_fallback: bool = True  # Use LLM for ambiguous commands
 
+    # Memory consolidation settings
+    consolidation_enabled: bool = True
+    consolidation_tick_interval: float = 60.0  # How often to check for consolidation
+    event_summarization_interval: float = 3600.0  # Summarize events hourly
+    relationship_update_interval: float = 86400.0  # Update relationships daily
+    reflection_probability: float = 0.3  # Chance to reflect on behavior outcome
+
     @classmethod
     def from_env(cls) -> "LLMConfig":
         """
@@ -105,6 +112,11 @@ class LLMConfig:
             voice_commands_enabled=os.getenv("MURPH_VOICE_COMMANDS_ENABLED", "true").lower() == "true",
             voice_wake_words=os.getenv("MURPH_VOICE_WAKE_WORDS", "").split(",") if os.getenv("MURPH_VOICE_WAKE_WORDS") else None,
             voice_llm_fallback=os.getenv("MURPH_VOICE_LLM_FALLBACK", "true").lower() == "true",
+            consolidation_enabled=os.getenv("MURPH_CONSOLIDATION_ENABLED", "true").lower() == "true",
+            consolidation_tick_interval=float(os.getenv("MURPH_CONSOLIDATION_TICK_INTERVAL", "60.0")),
+            event_summarization_interval=float(os.getenv("MURPH_EVENT_SUMMARIZATION_INTERVAL", "3600.0")),
+            relationship_update_interval=float(os.getenv("MURPH_RELATIONSHIP_UPDATE_INTERVAL", "86400.0")),
+            reflection_probability=float(os.getenv("MURPH_REFLECTION_PROBABILITY", "0.3")),
         )
 
     def validate(self) -> list[str]:

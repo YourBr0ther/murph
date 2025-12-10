@@ -261,3 +261,99 @@ class EventMemory:
             f"Event[{self.event_type}]: {self.outcome}, "
             f"strength={self.strength:.2f}, {age_str}"
         )
+
+
+@dataclass
+class InsightMemory:
+    """
+    An LLM-generated insight or summary.
+
+    Represents consolidated knowledge derived from raw events
+    and observations. Used for enriching LLM context and
+    tracking learned patterns.
+
+    Attributes:
+        insight_id: Unique identifier (UUID)
+        insight_type: Category like "event_summary", "relationship_narrative", "behavior_reflection"
+        subject_type: What the insight is about ("person", "behavior", "session", "general")
+        subject_id: ID of the subject (person_id, behavior_name, etc.)
+        content: Full insight content (1-3 sentences)
+        summary: Brief summary for quick reference (max 100 chars)
+        source_event_ids: Events that led to this insight
+        created_at: When the insight was generated
+        confidence: LLM confidence in this insight (0-1)
+        relevance_score: How relevant this insight is (decays over time)
+        tags: Descriptive tags for filtering
+    """
+
+    insight_type: str
+    subject_type: str
+    content: str
+    summary: str
+    subject_id: str | None = None
+    source_event_ids: list[str] = field(default_factory=list)
+    created_at: float = field(default_factory=time.time)
+    confidence: float = 0.7
+    relevance_score: float = 1.0
+    tags: set[str] = field(default_factory=set)
+    insight_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+    def decay_relevance(self, amount: float) -> None:
+        """
+        Decay the relevance score.
+
+        Args:
+            amount: Amount to decay (will be clamped to 0)
+        """
+        self.relevance_score = max(0.0, self.relevance_score - amount)
+
+    def is_stale(self, threshold: float = 0.1) -> bool:
+        """Check if this insight has decayed below relevance threshold."""
+        return self.relevance_score < threshold
+
+    def get_state(self) -> dict[str, Any]:
+        """Get serializable state for persistence."""
+        return {
+            "insight_id": self.insight_id,
+            "insight_type": self.insight_type,
+            "subject_type": self.subject_type,
+            "subject_id": self.subject_id,
+            "content": self.content,
+            "summary": self.summary,
+            "source_event_ids": self.source_event_ids.copy(),
+            "created_at": self.created_at,
+            "confidence": self.confidence,
+            "relevance_score": self.relevance_score,
+            "tags": list(self.tags),
+        }
+
+    @classmethod
+    def from_state(cls, state: dict[str, Any]) -> "InsightMemory":
+        """Create an InsightMemory from saved state."""
+        memory = cls(
+            insight_id=state.get("insight_id", str(uuid.uuid4())),
+            insight_type=state["insight_type"],
+            subject_type=state["subject_type"],
+            subject_id=state.get("subject_id"),
+            content=state.get("content", ""),
+            summary=state.get("summary", ""),
+            source_event_ids=state.get("source_event_ids", []),
+            created_at=state.get("created_at", time.time()),
+            confidence=state.get("confidence", 0.7),
+            relevance_score=state.get("relevance_score", 1.0),
+        )
+        memory.tags = set(state.get("tags", []))
+        return memory
+
+    def __str__(self) -> str:
+        age_seconds = time.time() - self.created_at
+        if age_seconds < 3600:
+            age_str = f"{age_seconds / 60:.0f}m ago"
+        elif age_seconds < 86400:
+            age_str = f"{age_seconds / 3600:.1f}h ago"
+        else:
+            age_str = f"{age_seconds / 86400:.1f}d ago"
+        return (
+            f"Insight[{self.insight_type}]: {self.summary[:50]}, "
+            f"relevance={self.relevance_score:.2f}, {age_str}"
+        )

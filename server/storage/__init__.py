@@ -7,6 +7,7 @@ from .database import Base, Database
 from .models import (
     EventModel,
     FaceEmbeddingModel,
+    InsightModel,
     ObjectModel,
     PersonModel,
     SpatialLandmarkModel,
@@ -21,6 +22,7 @@ __all__ = [
     "ObjectModel",
     "EventModel",
     "FaceEmbeddingModel",
+    "InsightModel",
     "SpatialLandmarkModel",
     "SpatialZoneModel",
     "SpatialObservationModel",

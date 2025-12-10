@@ -666,6 +666,46 @@ class MemorySystem:
 
         return await self.long_term.find_person_by_embedding(embedding, threshold)
 
+    # ==================== Convenience Methods for Consolidation ====================
+
+    def get_recent_events(self, limit: int = 50) -> list[EventMemory]:
+        """
+        Get recent events from short-term memory.
+
+        Args:
+            limit: Maximum number of events to return
+
+        Returns:
+            List of recent events
+        """
+        return self.short_term.get_recent_events(limit)
+
+    def get_familiar_people(self) -> dict[str, PersonMemory]:
+        """
+        Get all familiar people from short-term memory.
+
+        Returns:
+            Dictionary of person_id -> PersonMemory for familiar people
+        """
+        return {p.person_id: p for p in self.short_term.get_familiar_people()}
+
+    def get_events_with_person(
+        self,
+        person_id: str,
+        limit: int = 20,
+    ) -> list[EventMemory]:
+        """
+        Get events involving a specific person.
+
+        Args:
+            person_id: The person's ID
+            limit: Maximum number of events to return
+
+        Returns:
+            List of events involving this person
+        """
+        return self.short_term.get_events_with_participant(person_id, limit)
+
     def __str__(self) -> str:
         ltm_str = ", long_term=enabled" if self.long_term else ""
         spatial_str = f", {len(self.spatial_map.landmarks)} landmarks"
