@@ -3,7 +3,7 @@
 ## Status: Ready for Next Feature
 
 ## Previous Task Completed
-Production Documentation - 2024-12-10
+Documentation Verification & Fix - 2024-12-10
 
 ## Next Feature Options (from PROGRESS.md)
 1. Hardware testing with real Pi
@@ -50,6 +50,13 @@ Completed comprehensive production documentation:
 
 ### Files Modified
 - `README.md` - Added documentation links table
+- `docs/DEPLOYMENT.md` - Fixed Pi client instructions (CLI args, not .env)
+
+### Verification Results
+Verified deployment instructions against actual code:
+- Server: Valid (poetry run python -m server.main)
+- Emulator: Valid (poetry run python -m emulator.app)
+- Pi Client: Fixed - now uses correct CLI args (--host, --real-hardware)
 
 ### Test Results
 - 1105 tests passing (unchanged)
