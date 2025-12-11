@@ -415,6 +415,7 @@ DEFAULT_BEHAVIORS: list[Behavior] = [
         opportunity_triggers=["in_danger_zone"],
         duration_seconds=10.0,
         interruptible=False,
+        cooldown_seconds=60.0,
         energy_cost=20.0,
         tags=["navigation", "safety", "movement", "urgent"],
     ),
