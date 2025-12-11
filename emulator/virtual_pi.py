@@ -461,14 +461,23 @@ class VirtualPi:
 
         logger.info("Initializing video streaming...")
 
-        # Try real webcam first
-        self._camera = WebcamCamera()
-        if await self._camera.initialize():
-            self._state.webcam_available = True
-            logger.info("Webcam initialized successfully")
+        # Determine camera device (explicit config or auto-detect)
+        device_id = self._config.camera_device
+        if device_id is None:
+            device_id = WebcamCamera.find_available_device()
+
+        if device_id is not None:
+            self._camera = WebcamCamera(device_id=device_id)
+            if await self._camera.initialize():
+                self._state.webcam_available = True
+                logger.info("Webcam initialized successfully")
+            else:
+                logger.warning("Webcam failed to initialize, using mock frames")
+                self._camera = MockWebcamCamera()
+                await self._camera.initialize()
+                self._state.webcam_available = False
         else:
-            # Fall back to mock
-            logger.warning("Webcam not available, using mock frames")
+            logger.warning("No camera device found, using mock frames")
             self._camera = MockWebcamCamera()
             await self._camera.initialize()
             self._state.webcam_available = False

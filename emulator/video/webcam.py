@@ -62,6 +62,34 @@ class WebcamCamera:
 
         logger.info(f"WebcamCamera created (device={device_id}, {width}x{height} @ {fps}fps)")
 
+    @classmethod
+    def find_available_device(cls, max_devices: int = 5) -> int | None:
+        """
+        Scan for available camera devices.
+
+        Args:
+            max_devices: Maximum number of device indices to try
+
+        Returns:
+            First available device index, or None if no cameras found
+        """
+        try:
+            import cv2
+        except ImportError:
+            logger.warning("OpenCV (cv2) not installed - cannot scan for cameras")
+            return None
+
+        for device_id in range(max_devices):
+            cap = cv2.VideoCapture(device_id)
+            if cap.isOpened():
+                cap.release()
+                logger.info(f"Found camera at device index {device_id}")
+                return device_id
+            cap.release()
+
+        logger.warning("No camera devices found")
+        return None
+
     async def initialize(self) -> bool:
         """
         Initialize the webcam.

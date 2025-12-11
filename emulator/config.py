@@ -43,6 +43,7 @@ class EmulatorConfig:
     # Features
     video_enabled: bool = True  # enable webcam video streaming
     audio_enabled: bool = False  # enable microphone audio capture
+    camera_device: int | None = None  # camera device index (None = auto-detect)
 
     # Reflex thresholds (can override shared constants)
     pickup_threshold_g: float = 1.5  # acceleration threshold for pickup detection

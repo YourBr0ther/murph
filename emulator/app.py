@@ -15,6 +15,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 
+from .config import EmulatorConfig
 from .virtual_pi import VirtualPi, VirtualRobotState
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ def create_app(
     server_host: str = "localhost",
     server_port: int = 8765,
     video_enabled: bool = True,
+    camera_device: int | None = None,
 ) -> FastAPI:
     """
     Create the emulator FastAPI application.
@@ -36,6 +38,7 @@ def create_app(
         server_host: Server brain host
         server_port: Server brain port
         video_enabled: Enable webcam video streaming
+        camera_device: Camera device index (None = auto-detect)
 
     Returns:
         Configured FastAPI application
@@ -46,11 +49,13 @@ def create_app(
     async def lifespan(app: FastAPI):
         """Manage application startup and shutdown."""
         global virtual_pi
+        config = EmulatorConfig(camera_device=camera_device)
         virtual_pi = VirtualPi(
             server_host=server_host,
             server_port=server_port,
             on_state_change=on_state_change,
             video_enabled=video_enabled,
+            config=config,
         )
         await virtual_pi.start()
         video_status = "enabled" if video_enabled else "disabled"
@@ -391,6 +396,12 @@ def main() -> None:
         action=argparse.BooleanOptionalAction,
         help="Enable/disable webcam video streaming (default: enabled)",
     )
+    parser.add_argument(
+        "--camera-device",
+        type=int,
+        default=None,
+        help="Camera device index (default: auto-detect)",
+    )
 
     args = parser.parse_args()
 
@@ -402,6 +413,7 @@ def main() -> None:
         server_host=args.server_host,
         server_port=args.server_port,
         video_enabled=args.video,
+        camera_device=args.camera_device,
     )
     uvicorn.run(app, host=args.host, port=args.port)
 
