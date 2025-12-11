@@ -6,6 +6,7 @@ Main entry point for the robot's brain (perception, cognition, expression).
 import asyncio
 import logging
 import signal
+import sys
 
 import uvicorn
 
@@ -40,8 +41,17 @@ async def main() -> None:
         logger.info("Shutdown signal received")
         shutdown_event.set()
 
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, signal_handler)
+    if sys.platform == "win32":
+        # Windows: use signal.signal() with call_soon_threadsafe
+        def windows_handler(signum: int, frame: object) -> None:
+            loop.call_soon_threadsafe(shutdown_event.set)
+
+        signal.signal(signal.SIGINT, windows_handler)
+        # Note: SIGTERM doesn't exist on Windows
+    else:
+        # Unix: use asyncio's signal handlers
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, signal_handler)
 
     # Configure uvicorn for the dashboard server
     config = uvicorn.Config(
