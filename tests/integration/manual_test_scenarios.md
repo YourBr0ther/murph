@@ -2,7 +2,7 @@
 
 ## Prerequisites
 1. Start server: `python -m server.main`
-2. Start emulator: `cd /home/chris/myrobot && .venv/bin/python -m emulator.app`
+2. Start emulator: `cd /home/chris/myrobot && .venv/bin/python -m emulator`
 3. Open browser to http://localhost:8080
 
 ## Scenario 1: Basic Connection

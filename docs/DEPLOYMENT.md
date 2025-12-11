@@ -261,7 +261,7 @@ poetry install
 ### 2. Run Emulator
 
 ```bash
-poetry run python -m emulator.app
+poetry run python -m emulator
 ```
 
 Emulator UI: `http://localhost:8080`

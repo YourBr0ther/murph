@@ -88,7 +88,7 @@ Dashboard: http://localhost:8081
 
 ```bash
 # Run the emulator for testing without a Pi
-poetry run python -m emulator.app
+poetry run python -m emulator
 ```
 
 Emulator UI: http://localhost:8080
