@@ -93,6 +93,13 @@ poetry run python -m emulator
 
 Emulator UI: http://localhost:8080
 
+**Webcam Support (Optional):** To use a real webcam instead of mock video frames:
+
+```bash
+# Install emulator dependencies (opencv, aiortc, av)
+poetry install --with emulator
+```
+
 ### 3. Raspberry Pi Setup
 
 ```bash

@@ -42,6 +42,12 @@ black = "^24.1"
 ruff = "^0.1"
 mypy = "^1.8"
 
+[tool.poetry.group.emulator.dependencies]
+# Optional: Install with `poetry install --with emulator` for webcam support
+opencv-python = "^4.8"
+aiortc = "^1.6"
+av = "^12.0"
+
 [tool.black]
 line-length = 100
 target-version = ["py311"]
