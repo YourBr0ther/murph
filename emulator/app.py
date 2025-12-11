@@ -395,6 +395,9 @@ def main() -> None:
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
+    # Suppress aioice binding errors for link-local addresses (169.254.x.x)
+    # These are non-fatal on Windows - connection succeeds via valid addresses
+    logging.getLogger("aioice.ice").setLevel(logging.WARNING)
     app = create_app(
         server_host=args.server_host,
         server_port=args.server_port,
