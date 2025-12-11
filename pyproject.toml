@@ -46,7 +46,7 @@ mypy = "^1.8"
 # Optional: Install with `poetry install --with emulator` for webcam support
 opencv-python = "^4.8"
 aiortc = "^1.6"
-av = "^12.0"
+av = "^14.0"
 
 [tool.black]
 line-length = 100
