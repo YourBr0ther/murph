@@ -306,6 +306,15 @@ class TestNeedsSystem:
         assert happiness < 100.0
         assert happiness > 0.0
 
+    def test_get_happiness(self):
+        """Test get_happiness() wraps calculate_happiness()."""
+        system = NeedsSystem()
+        assert system.get_happiness() == system.calculate_happiness()
+
+        # Also verify with modified need values
+        system.needs["energy"].value = 50.0
+        assert system.get_happiness() == system.calculate_happiness()
+
     def test_get_critical_needs(self):
         """Test getting critical needs."""
         system = NeedsSystem()

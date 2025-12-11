@@ -179,6 +179,15 @@ class NeedsSystem:
 
         return total_weighted_value / total_weight
 
+    def get_happiness(self) -> float:
+        """
+        Get the robot's current happiness level.
+
+        Returns:
+            Happiness value from 0 (miserable) to 100 (perfectly happy)
+        """
+        return self.calculate_happiness()
+
     def get_critical_needs(self) -> list[Need]:
         """Get list of needs that are below their critical threshold."""
         return [need for need in self.needs.values() if need.is_critical()]
