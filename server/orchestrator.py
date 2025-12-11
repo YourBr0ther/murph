@@ -290,6 +290,9 @@ class CognitionOrchestrator:
         self._memory_system = MemorySystem(long_term=self._long_term_memory)
         await self._memory_system.initialize_from_database()
 
+        # Connect memory system to vision processor for face recognition
+        self._vision_processor.set_memory_system(self._memory_system)
+
         # Initialize context builder
         self._context_builder = ContextBuilder(
             memory_system=self._memory_system,

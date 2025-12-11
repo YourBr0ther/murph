@@ -138,6 +138,27 @@ class VisionProcessor:
 
         logger.info(f"VisionProcessor created (ttl={result_ttl_ms}ms)")
 
+    def set_memory_system(self, memory_system: MemorySystem) -> None:
+        """
+        Set or update the memory system for face recognition.
+
+        This allows connecting the memory system after initialization,
+        which is needed when memory is initialized after the VisionProcessor.
+
+        Args:
+            memory_system: MemorySystem for face lookups
+        """
+        self._memory = memory_system
+
+        # If recognizer already initialized, recreate it with memory
+        if self._recognizer is not None:
+            from server.perception.vision.face_recognizer import FaceRecognizer
+
+            self._recognizer = FaceRecognizer(memory_system=self._memory)
+            logger.info("VisionProcessor: updated FaceRecognizer with memory system")
+        else:
+            logger.info("VisionProcessor: memory system set (will use on init)")
+
     def _ensure_initialized(self) -> bool:
         """Lazy-initialize vision components."""
         if self._initialized:

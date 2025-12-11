@@ -236,3 +236,35 @@ class TestVisionProcessor:
         processor = VisionProcessor()
         repr_str = repr(processor)
         assert "VisionProcessor" in repr_str
+
+    def test_set_memory_system_before_init(self) -> None:
+        """Test setting memory system before lazy initialization."""
+        processor = VisionProcessor()
+        mock_memory = MagicMock()
+
+        # Set memory before _ensure_initialized has run
+        processor.set_memory_system(mock_memory)
+
+        assert processor._memory is mock_memory
+        # Recognizer not yet created
+        assert processor._recognizer is None
+
+    def test_set_memory_system_after_init(self) -> None:
+        """Test setting memory system after recognizer is initialized."""
+        processor = VisionProcessor()
+
+        # Force initialization with no memory
+        processor._ensure_initialized()
+        old_recognizer = processor._recognizer
+
+        # Now set memory - should recreate recognizer
+        mock_memory = MagicMock()
+        with patch(
+            "server.perception.vision.face_recognizer.FaceRecognizer"
+        ) as mock_recognizer_class:
+            mock_recognizer_class.return_value = MagicMock()
+            processor.set_memory_system(mock_memory)
+
+            # Recognizer should be recreated with memory
+            mock_recognizer_class.assert_called_once_with(memory_system=mock_memory)
+            assert processor._recognizer is not old_recognizer
