@@ -13,6 +13,7 @@ from server.llm.services.voice_command_service import (
     COMMAND_PATTERNS,
     RESPONSE_TEMPLATES,
 )
+from server.llm.types import LLMResponse
 
 
 class TestWakeWordDetection:
@@ -356,7 +357,9 @@ class TestLLMFallback:
     async def test_llm_fallback_with_mock_service(self) -> None:
         """Test LLM fallback with mock LLM service."""
         mock_llm = AsyncMock()
-        mock_llm.generate.return_value = "approach"
+        mock_llm.complete = AsyncMock(
+            return_value=LLMResponse(content="approach", model="test")
+        )
 
         service = VoiceCommandService(llm_service=mock_llm)
         result = await service.parse_command_llm("can you come over here please")
@@ -369,7 +372,9 @@ class TestLLMFallback:
     async def test_llm_fallback_unknown_response(self) -> None:
         """Test LLM returning unknown action."""
         mock_llm = AsyncMock()
-        mock_llm.generate.return_value = "dance"  # Not a valid action
+        mock_llm.complete = AsyncMock(
+            return_value=LLMResponse(content="dance", model="test")  # Not a valid action
+        )
 
         service = VoiceCommandService(llm_service=mock_llm)
         result = await service.parse_command_llm("do a dance")

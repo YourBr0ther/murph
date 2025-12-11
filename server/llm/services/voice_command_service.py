@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import TYPE_CHECKING, Any
 
+from ..types import LLMMessage
+
 if TYPE_CHECKING:
     from ..config import LLMConfig
     from .llm_service import LLMService
@@ -278,9 +280,10 @@ Available actions: {', '.join(available_actions)}
 What action does the user want? Respond with ONLY the action name (one of the available actions), or "unknown" if unclear.
 Do not include any explanation, just the single word action name."""
 
-            response = await self._llm_service.generate(prompt)
+            messages = [LLMMessage(role="user", content=prompt)]
+            response = await self._llm_service.complete(messages)
             if response:
-                action = response.strip().lower().replace('"', "").replace("'", "")
+                action = response.content.strip().lower().replace('"', "").replace("'", "")
 
                 # Validate action
                 if action in available_actions:
