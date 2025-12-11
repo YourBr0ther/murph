@@ -184,14 +184,26 @@ class TestPiConnectionManagerConnection:
         conn_callback.assert_any_call(False)
 
     @pytest.mark.asyncio
-    async def test_handle_connection_rejects_second(self, mock_websocket):
-        """Test second connection is rejected with code 1008."""
+    async def test_handle_connection_replaces_existing(self, mock_websocket):
+        """Test second connection replaces existing (closes old, accepts new)."""
         manager = PiConnectionManager()
-        manager._connection = MagicMock()  # Already connected
+        old_connection = MagicMock()
+        old_connection.close = AsyncMock()
+        manager._connection = old_connection
+
+        # Make websocket async iteration end immediately
+        async def empty_async_iter():
+            return
+            yield  # Make it a generator
+
+        mock_websocket.__aiter__ = lambda self: empty_async_iter()
 
         await manager._handle_connection(mock_websocket)
 
-        mock_websocket.close.assert_called_once_with(1008, "Already connected")
+        # Old connection should be closed
+        old_connection.close.assert_called_once_with(1001, "Replaced by new connection")
+        # New connection should NOT be closed
+        mock_websocket.close.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_handle_connection_cleans_up_on_close(self, mock_websocket):

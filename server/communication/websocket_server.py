@@ -146,11 +146,13 @@ class PiConnectionManager:
         websocket: WebSocketServerProtocol,
     ) -> None:
         """Handle an incoming Pi connection."""
-        # Only allow one connection at a time
+        # If there's an existing connection, close it (likely stale)
         if self._connection is not None:
-            logger.warning("Rejecting connection - Pi already connected")
-            await websocket.close(1008, "Already connected")
-            return
+            logger.warning("New connection received - closing existing connection")
+            try:
+                await self._connection.close(1001, "Replaced by new connection")
+            except Exception:
+                pass  # Old connection may already be dead
 
         self._connection = websocket
         self._last_heartbeat = time.time()
