@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -41,41 +42,40 @@ def create_app(
     """
     global virtual_pi
 
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        """Manage application startup and shutdown."""
+        global virtual_pi
+        virtual_pi = VirtualPi(
+            server_host=server_host,
+            server_port=server_port,
+            on_state_change=on_state_change,
+            video_enabled=video_enabled,
+        )
+        await virtual_pi.start()
+        video_status = "enabled" if video_enabled else "disabled"
+        logger.info(f"Emulator started (video: {video_status})")
+
+        yield
+
+        if virtual_pi:
+            await virtual_pi.stop()
+        logger.info("Emulator stopped")
+
     app = FastAPI(
         title="Murph Emulator",
         description="Web-based robot simulator for testing",
         version="1.0.0",
+        lifespan=lifespan,
     )
 
-    # Store video_enabled for use in startup
+    # Store video_enabled for use in other handlers
     app.state.video_enabled = video_enabled
 
     # Static files
     static_dir = Path(__file__).parent / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-
-    @app.on_event("startup")
-    async def startup():
-        """Start virtual Pi on app startup."""
-        global virtual_pi
-        virtual_pi = VirtualPi(
-            server_host=server_host,
-            server_port=server_port,
-            on_state_change=on_state_change,
-            video_enabled=app.state.video_enabled,
-        )
-        await virtual_pi.start()
-        video_status = "enabled" if app.state.video_enabled else "disabled"
-        logger.info(f"Emulator started (video: {video_status})")
-
-    @app.on_event("shutdown")
-    async def shutdown():
-        """Stop virtual Pi on app shutdown."""
-        global virtual_pi
-        if virtual_pi:
-            await virtual_pi.stop()
-        logger.info("Emulator stopped")
 
     @app.get("/", response_class=HTMLResponse)
     async def index():
@@ -366,8 +366,8 @@ def get_fallback_html() -> str:
 """
 
 
-# Entry point for running the emulator
-if __name__ == "__main__":
+def main() -> None:
+    """Entry point for running the emulator."""
     import argparse
     import uvicorn
 
@@ -401,3 +401,7 @@ if __name__ == "__main__":
         video_enabled=args.video,
     )
     uvicorn.run(app, host=args.host, port=args.port)
+
+
+if __name__ == "__main__":
+    main()

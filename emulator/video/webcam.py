@@ -97,7 +97,7 @@ class WebcamCamera:
             return True
 
         except ImportError:
-            logger.error("OpenCV (cv2) not installed - webcam disabled")
+            logger.warning("OpenCV (cv2) not installed - webcam disabled")
             return False
         except Exception as e:
             logger.error(f"Webcam initialization failed: {e}")

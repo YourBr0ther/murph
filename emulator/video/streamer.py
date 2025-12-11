@@ -123,7 +123,7 @@ class EmulatorVideoStreamer:
         try:
             from aiortc import RTCConfiguration, RTCIceServer, RTCPeerConnection
         except ImportError:
-            logger.error("aiortc not installed - video streaming disabled")
+            logger.warning("aiortc not installed - video streaming disabled")
             return
 
         # Close existing connection
