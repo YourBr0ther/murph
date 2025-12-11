@@ -27,7 +27,9 @@ ENV/
 env/
 
 # Poetry
-# (poetry.lock is tracked for reproducible builds)
+# poetry.lock is NOT tracked because PyTorch has platform-specific wheels
+# Each developer generates their own lock file for their OS/Python version
+poetry.lock
 
 # IDE
 .idea/
