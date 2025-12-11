@@ -27,7 +27,7 @@ ENV/
 env/
 
 # Poetry
-poetry.lock
+# (poetry.lock is tracked for reproducible builds)
 
 # IDE
 .idea/

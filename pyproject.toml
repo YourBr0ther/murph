@@ -26,7 +26,7 @@ sqlalchemy = "^2.0"
 aiosqlite = "^0.19"
 py-trees = "^2.2"
 facenet-pytorch = "^2.5"
-torch = "^2.1"
+torch = ">=2.1,<2.6"
 
 [tool.poetry.group.pi.dependencies]
 # Pi-specific deps (install on Pi only)
