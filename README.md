@@ -94,6 +94,9 @@ poetry run python -m emulator
 poetry install --with emulator
 ```
 
+> **Windows Note:** Installing webcam support requires [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/).
+> Download and install the "Desktop development with C++" workload before running the command above.
+
 Emulator UI: http://localhost:8080
 
 ### 3. Raspberry Pi Setup
