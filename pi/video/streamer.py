@@ -181,6 +181,11 @@ class VideoStreamer:
         @self._pc.on("icecandidate")
         async def on_ice_candidate(candidate: Any) -> None:
             if candidate and self._on_signaling:
+                # Filter out link-local addresses (169.254.x.x) that cause
+                # binding errors on Windows
+                if "169.254." in candidate.candidate:
+                    logger.debug(f"Filtering link-local ICE candidate: {candidate.candidate}")
+                    return
                 # Send ICE candidate to server
                 msg = RobotMessage(
                     message_type=MessageType.WEBRTC_ICE_CANDIDATE,
