@@ -25,6 +25,16 @@
         </header>
 
         <main>
+            <section class="webcam-panel">
+                <h2>Robot Camera View</h2>
+                <div class="webcam-container">
+                    <img id="webcamVideo" src="/api/video/stream" alt="Robot camera view">
+                    <div class="webcam-overlay" id="webcamOverlay">
+                        <span class="webcam-status" id="webcamStatus">Camera unavailable</span>
+                    </div>
+                </div>
+            </section>
+
             <section class="visualization">
                 <div class="robot-container">
                     <div class="robot" id="robot">

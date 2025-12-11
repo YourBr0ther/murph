@@ -29,6 +29,10 @@ const elements = {
     accelY: document.getElementById('accelY'),
     accelZ: document.getElementById('accelZ'),
     touchElectrodes: document.getElementById('touchElectrodes'),
+    // Webcam
+    webcamVideo: document.getElementById('webcamVideo'),
+    webcamOverlay: document.getElementById('webcamOverlay'),
+    webcamStatus: document.getElementById('webcamStatus'),
 };
 
 // IMU Graph class for rolling sensor visualization
@@ -165,6 +169,9 @@ function updateUI(state) {
 
     // Update sensor display
     updateSensorDisplay(state);
+
+    // Update webcam status
+    updateWebcamStatus(state);
 
     // Update raw state
     elements.state.textContent = JSON.stringify(state, null, 2);
@@ -336,6 +343,27 @@ function flashButton(btn) {
     setTimeout(() => {
         btn.style.transform = '';
     }, 100);
+}
+
+// Webcam status display
+function updateWebcamStatus(state) {
+    if (!elements.webcamOverlay) return;
+
+    if (state.webcam_available && state.video_enabled) {
+        // Camera is available and streaming - hide overlay
+        elements.webcamOverlay.classList.remove('visible');
+        elements.webcamOverlay.classList.remove('error');
+    } else if (!state.video_enabled) {
+        // Video disabled
+        elements.webcamOverlay.classList.add('visible');
+        elements.webcamOverlay.classList.remove('error');
+        elements.webcamStatus.textContent = 'Video disabled';
+    } else {
+        // No camera available
+        elements.webcamOverlay.classList.add('visible');
+        elements.webcamOverlay.classList.add('error');
+        elements.webcamStatus.textContent = 'No camera available';
+    }
 }
 
 // Initialize

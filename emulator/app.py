@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 
 from .config import EmulatorConfig
 from .virtual_pi import VirtualPi, VirtualRobotState
@@ -105,6 +105,45 @@ def create_app(
                 "video": video_stats,
             }
         return {"connected": False, "state": None, "video": {}}
+
+    @app.get("/api/video/stream")
+    async def video_stream():
+        """Stream video frames as MJPEG from the robot's camera."""
+        if not virtual_pi or not virtual_pi._camera:
+            return HTMLResponse(
+                content="Video not available",
+                status_code=503,
+            )
+
+        async def generate_frames():
+            """Generate MJPEG frames from camera."""
+            import cv2
+
+            while True:
+                frame = virtual_pi._camera.capture_frame()
+                if frame is None:
+                    await asyncio.sleep(0.1)
+                    continue
+
+                # Convert RGB to BGR for OpenCV encoding
+                bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+                # Encode as JPEG
+                _, jpeg = cv2.imencode(".jpg", bgr_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+
+                # Yield as MJPEG frame
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
+                )
+
+                # Target ~10 FPS
+                await asyncio.sleep(0.1)
+
+        return StreamingResponse(
+            generate_frames(),
+            media_type="multipart/x-mixed-replace; boundary=frame",
+        )
 
     @app.post("/api/touch")
     async def simulate_touch(electrodes: list[int]):
