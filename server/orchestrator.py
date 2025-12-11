@@ -449,8 +449,8 @@ class CognitionOrchestrator:
                 # Update time since last speech (always increases)
                 self._world_context.time_since_last_speech += cycle_time
 
-                # If no behavior running, select and start one
-                if not self._executor.is_running:
+                # If no behavior running and Pi is connected, select and start one
+                if not self._executor.is_running and self._pi_connected:
                     # Check for dashboard-requested behavior first
                     if self._requested_behavior:
                         behavior = self._evaluator.registry.get(self._requested_behavior)
