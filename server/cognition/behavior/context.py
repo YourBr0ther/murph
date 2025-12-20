@@ -3,8 +3,16 @@ Murph - World Context
 Current world state used for opportunity bonus calculation.
 """
 
+import math
 from dataclasses import dataclass, field
 from typing import Any
+
+
+def _json_safe(value: float) -> float | None:
+    """Convert infinity to None for JSON serialization."""
+    if math.isinf(value):
+        return None
+    return value
 
 
 @dataclass
@@ -304,14 +312,14 @@ class WorldContext:
             "is_being_held": self.is_being_held,
             "is_being_petted": self.is_being_petted,
             "recent_bump": self.recent_bump,
-            "time_since_last_interaction": self.time_since_last_interaction,
+            "time_since_last_interaction": _json_safe(self.time_since_last_interaction),
             "current_behavior": self.current_behavior,
             "current_hour": self.current_hour,
             "time_period": self.time_period,
             "person_detected_previous": self.person_detected_previous,
             "was_falling": self.was_falling,
             "last_heard_text": self.last_heard_text,
-            "time_since_last_speech": self.time_since_last_speech,
+            "time_since_last_speech": _json_safe(self.time_since_last_speech),
             "remembered_person_name": self.remembered_person_name,
             "person_interaction_count": self.person_interaction_count,
             "person_sentiment": self.person_sentiment,
@@ -406,7 +414,7 @@ class WorldContext:
             },
             "speech": {
                 "last_heard_text": self.last_heard_text,
-                "time_since_last_speech": self.time_since_last_speech,
+                "time_since_last_speech": _json_safe(self.time_since_last_speech),
             },
             "spatial": {
                 "zone_type": self.current_zone_type,
