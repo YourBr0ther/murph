@@ -117,8 +117,8 @@ class ActionDispatcher:
 
         speech_cmd = SpeechCommand(
             audio_data=audio_b64,
-            audio_format="wav",
-            sample_rate=22050,
+            audio_format="mp3",  # NanoGPT OpenAI-compatible TTS returns MP3
+            sample_rate=24000,  # MP3 from tts-1 is 24kHz
             volume=1.0,
             emotion=emotion,
             text=text[:50],  # Truncate for logging

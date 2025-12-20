@@ -133,7 +133,7 @@ class SpeechService:
         voice_style: str = "robot",
     ) -> bytes | None:
         """
-        Synthesize speech from text.
+        Synthesize speech from text using OpenAI-compatible TTS API.
 
         Args:
             text: Text to synthesize (or phrase key like "greeting")
@@ -141,7 +141,7 @@ class SpeechService:
             voice_style: "robot" (beepy), "words" (clear speech)
 
         Returns:
-            Audio bytes (WAV format) or None on error
+            Audio bytes (MP3 format) or None on error
         """
         if not self._api_key:
             logger.warning("Speech synthesis unavailable: no API key")
@@ -162,17 +162,31 @@ class SpeechService:
         try:
             session = await self._ensure_session()
 
-            # Build request payload
+            # Map emotion to voice - use different voices for variety
+            # Available OpenAI voices: alloy, echo, fable, onyx, nova, shimmer
+            voice_map = {
+                "happy": "nova",
+                "playful": "nova",
+                "excited": "nova",
+                "sad": "onyx",
+                "scared": "echo",
+                "sleepy": "onyx",
+                "curious": "alloy",
+                "neutral": "alloy",
+            }
+            voice = voice_map.get(emotion, "alloy")
+
+            # Build request payload (OpenAI-compatible format)
             payload = {
-                "model": self._config.tts_model,
+                "model": "tts-1",  # OpenAI-compatible model
                 "input": actual_text,
-                "response_format": "wav",
+                "voice": voice,
             }
 
-            logger.debug(f"TTS request: '{actual_text[:30]}...' (emotion={emotion})")
+            logger.debug(f"TTS request: '{actual_text[:30]}...' (voice={voice})")
 
             async with session.post(
-                f"{self._base_url}/text-to-speech",
+                f"{self._base_url}/audio/speech",
                 json=payload,
             ) as resp:
                 if resp.status == 200:
