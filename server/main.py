@@ -22,6 +22,12 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
+
+# Quiet down noisy libraries
+logging.getLogger("aiortc").setLevel(logging.WARNING)
+logging.getLogger("aioice").setLevel(logging.WARNING)
+logging.getLogger("websockets").setLevel(logging.WARNING)
+
 logger = logging.getLogger("murph.server")
 
 # Dashboard server configuration

@@ -209,21 +209,26 @@ class VideoReceiver:
 
         @self._pc.on("track")
         def on_track(track: MediaStreamTrack) -> None:
-            logger.info(f"Received track: {track.kind}")
+            logger.info(f"Received track: {track.kind} (id={getattr(track, 'id', 'unknown')})")
 
             if track.kind == "video":
                 self._video_track = track
+                logger.info("Video track received - starting frame extraction")
                 # Start frame extraction task
                 if self._frame_task is None or self._frame_task.done():
                     self._frame_task = asyncio.create_task(
                         self._extract_frames(track),
                         name="frame_extraction",
                     )
+                    logger.info("Frame extraction task created")
+                else:
+                    logger.warning("Frame extraction task already running")
 
             elif track.kind == "audio":
                 # Forward to audio receiver for STT processing
                 if self._audio_receiver:
                     self._audio_receiver.handle_track(track)
+                    logger.info("Audio track forwarded to audio receiver")
                 else:
                     logger.warning("Audio track received but no audio receiver configured")
 
@@ -264,6 +269,12 @@ class VideoReceiver:
                         self._on_frame(img)
 
                     self._frames_received += 1
+
+                    # Log first frame and periodically after
+                    if self._frames_received == 1:
+                        logger.info(f"First frame received! Shape: {img.shape}")
+                    elif self._frames_received % 100 == 0:
+                        logger.debug(f"Frames received: {self._frames_received}")
 
                 except Exception as e:
                     if "MediaStreamError" in str(type(e).__name__):

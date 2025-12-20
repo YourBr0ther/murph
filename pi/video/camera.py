@@ -197,57 +197,67 @@ class CameraVideoTrack:
     """
     aiortc-compatible VideoStreamTrack wrapper for CameraManager.
 
-    This class implements the interface expected by aiortc for
-    sending video frames over WebRTC.
+    This class properly inherits from aiortc.VideoStreamTrack to ensure
+    all required properties and methods are available.
     """
 
     kind = "video"
 
+    def __new__(cls, camera: CameraManager) -> Any:
+        """
+        Factory method that returns a properly configured VideoStreamTrack.
+
+        Uses __new__ to lazily import aiortc and return a subclass instance.
+        """
+        try:
+            from aiortc import VideoStreamTrack as BaseTrack
+        except ImportError:
+            logger.error("aiortc not available, returning basic track")
+            return object.__new__(cls)
+
+        # Create a dynamic subclass that inherits from VideoStreamTrack
+        class _CameraVideoTrack(BaseTrack):
+            def __init__(self, cam: CameraManager) -> None:
+                super().__init__()
+                self._camera = cam
+                self._frame_count = 0
+
+            async def recv(self) -> Any:
+                from av import VideoFrame as AVVideoFrame
+
+                # Use base class for timestamp management
+                pts, time_base = await self.next_timestamp()
+
+                # Get frame from camera
+                frame = self._camera.capture_frame()
+
+                self._frame_count += 1
+                if self._frame_count == 1:
+                    logger.info("CameraVideoTrack.recv() called - first frame request")
+                elif self._frame_count % 100 == 0:
+                    logger.debug(f"CameraVideoTrack: {self._frame_count} frames captured")
+
+                if frame is None:
+                    if self._frame_count <= 5:
+                        logger.warning(f"capture_frame() returned None (frame {self._frame_count})")
+                    # Generate blank frame if capture failed
+                    frame = np.zeros(
+                        (self._camera._height, self._camera._width, 3),
+                        dtype=np.uint8,
+                    )
+
+                # Convert to av VideoFrame
+                video_frame = AVVideoFrame.from_ndarray(frame, format="rgb24")
+                video_frame.pts = pts
+                video_frame.time_base = time_base
+
+                return video_frame
+
+        return _CameraVideoTrack(camera)
+
     def __init__(self, camera: CameraManager) -> None:
-        """
-        Initialize video track.
-
-        Args:
-            camera: CameraManager instance
-        """
-        self._camera = camera
-        self._timestamp = 0
-        self._start_time = time.time()
-
-    async def recv(self) -> VideoFrame:
-        """
-        Receive the next video frame.
-
-        This is called by aiortc to get frames for transmission.
-
-        Returns:
-            VideoFrame for WebRTC transmission
-        """
-        from av import VideoFrame as AVVideoFrame
-
-        # Get frame from camera
-        frame = self._camera.capture_frame()
-
-        if frame is None:
-            # Generate blank frame if capture failed
-            frame = np.zeros(
-                (self._camera._height, self._camera._width, 3),
-                dtype=np.uint8,
-            )
-
-        # Convert to av VideoFrame
-        video_frame = AVVideoFrame.from_ndarray(frame, format="rgb24")
-
-        # Set timestamp (pts) based on frame rate
-        elapsed = time.time() - self._start_time
-        video_frame.pts = int(elapsed * 90000)  # 90kHz timebase
-        video_frame.time_base = "1/90000"
-
-        return video_frame
-
-    def stop(self) -> None:
-        """Stop the video track."""
-        pass  # Camera stop is handled by CameraManager
+        """Placeholder - actual init happens in __new__."""
+        pass
 
 
 class OpenCVCameraManager:
@@ -442,57 +452,67 @@ class OpenCVVideoTrack:
     """
     aiortc-compatible VideoStreamTrack wrapper for OpenCVCameraManager.
 
-    This class implements the interface expected by aiortc for
-    sending video frames over WebRTC.
+    This class properly inherits from aiortc.VideoStreamTrack to ensure
+    all required properties and methods are available.
     """
 
     kind = "video"
 
+    def __new__(cls, camera: OpenCVCameraManager) -> Any:
+        """
+        Factory method that returns a properly configured VideoStreamTrack.
+
+        Uses __new__ to lazily import aiortc and return a subclass instance.
+        """
+        try:
+            from aiortc import VideoStreamTrack as BaseTrack
+        except ImportError:
+            logger.error("aiortc not available, returning basic track")
+            return object.__new__(cls)
+
+        # Create a dynamic subclass that inherits from VideoStreamTrack
+        class _OpenCVVideoTrack(BaseTrack):
+            def __init__(self, cam: OpenCVCameraManager) -> None:
+                super().__init__()
+                self._camera = cam
+                self._frame_count = 0
+
+            async def recv(self) -> Any:
+                from av import VideoFrame as AVVideoFrame
+
+                # Use base class for timestamp management
+                pts, time_base = await self.next_timestamp()
+
+                # Get frame from camera
+                frame = self._camera.capture_frame()
+
+                self._frame_count += 1
+                if self._frame_count == 1:
+                    logger.info("OpenCVVideoTrack.recv() called - first frame request")
+                elif self._frame_count % 100 == 0:
+                    logger.debug(f"OpenCVVideoTrack: {self._frame_count} frames captured")
+
+                if frame is None:
+                    if self._frame_count <= 5:
+                        logger.warning(f"capture_frame() returned None (frame {self._frame_count})")
+                    # Generate blank frame if capture failed
+                    frame = np.zeros(
+                        (self._camera._height, self._camera._width, 3),
+                        dtype=np.uint8,
+                    )
+
+                # Convert to av VideoFrame
+                video_frame = AVVideoFrame.from_ndarray(frame, format="rgb24")
+                video_frame.pts = pts
+                video_frame.time_base = time_base
+
+                return video_frame
+
+        return _OpenCVVideoTrack(camera)
+
     def __init__(self, camera: OpenCVCameraManager) -> None:
-        """
-        Initialize video track.
-
-        Args:
-            camera: OpenCVCameraManager instance
-        """
-        self._camera = camera
-        self._timestamp = 0
-        self._start_time = time.time()
-
-    async def recv(self) -> VideoFrame:
-        """
-        Receive the next video frame.
-
-        This is called by aiortc to get frames for transmission.
-
-        Returns:
-            VideoFrame for WebRTC transmission
-        """
-        from av import VideoFrame as AVVideoFrame
-
-        # Get frame from camera
-        frame = self._camera.capture_frame()
-
-        if frame is None:
-            # Generate blank frame if capture failed
-            frame = np.zeros(
-                (self._camera._height, self._camera._width, 3),
-                dtype=np.uint8,
-            )
-
-        # Convert to av VideoFrame
-        video_frame = AVVideoFrame.from_ndarray(frame, format="rgb24")
-
-        # Set timestamp (pts) based on frame rate
-        elapsed = time.time() - self._start_time
-        video_frame.pts = int(elapsed * 90000)  # 90kHz timebase
-        video_frame.time_base = "1/90000"
-
-        return video_frame
-
-    def stop(self) -> None:
-        """Stop the video track."""
-        pass  # Camera stop is handled by OpenCVCameraManager
+        """Placeholder - actual init happens in __new__."""
+        pass
 
 
 class MockCameraManager:
@@ -616,34 +636,43 @@ class MockCameraManager:
 
 
 class MockVideoTrack:
-    """Mock video track for testing."""
+    """Mock video track for testing - properly inherits from aiortc.VideoStreamTrack."""
 
     kind = "video"
 
+    def __new__(cls, camera: MockCameraManager) -> Any:
+        """Factory method that returns a properly configured VideoStreamTrack."""
+        try:
+            from aiortc import VideoStreamTrack as BaseTrack
+        except ImportError:
+            logger.warning("aiortc not available, returning basic mock track")
+            return object.__new__(cls)
+
+        class _MockVideoTrack(BaseTrack):
+            def __init__(self, cam: MockCameraManager) -> None:
+                super().__init__()
+                self._camera = cam
+
+            async def recv(self) -> Any:
+                from av import VideoFrame as AVVideoFrame
+
+                pts, time_base = await self.next_timestamp()
+
+                frame = self._camera.capture_frame()
+                if frame is None:
+                    frame = np.zeros(
+                        (self._camera._height, self._camera._width, 3),
+                        dtype=np.uint8,
+                    )
+
+                video_frame = AVVideoFrame.from_ndarray(frame, format="rgb24")
+                video_frame.pts = pts
+                video_frame.time_base = time_base
+
+                return video_frame
+
+        return _MockVideoTrack(camera)
+
     def __init__(self, camera: MockCameraManager) -> None:
-        self._camera = camera
-        self._start_time = time.time()
-
-    async def recv(self) -> VideoFrame:
-        """Receive mock frame."""
-        from av import VideoFrame as AVVideoFrame
-
-        frame = self._camera.capture_frame()
-        if frame is None:
-            frame = np.zeros(
-                (self._camera._height, self._camera._width, 3),
-                dtype=np.uint8,
-            )
-
-        video_frame = AVVideoFrame.from_ndarray(frame, format="rgb24")
-        elapsed = time.time() - self._start_time
-        video_frame.pts = int(elapsed * 90000)
-        video_frame.time_base = "1/90000"
-
-        # Add small delay to simulate real camera timing
-        await asyncio.sleep(1.0 / self._camera._fps)
-
-        return video_frame
-
-    def stop(self) -> None:
+        """Placeholder - actual init happens in __new__."""
         pass

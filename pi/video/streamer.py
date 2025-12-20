@@ -149,6 +149,7 @@ class VideoStreamer:
         # Add video track from camera
         video_track = self._camera.create_video_track()
         self._pc.addTrack(video_track)
+        logger.info(f"Video track added to WebRTC connection: {type(video_track).__name__}")
 
         # Add audio track from microphone if available
         if self._microphone:
