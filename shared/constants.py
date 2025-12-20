@@ -4,7 +4,7 @@ Constants used by both Pi client and server brain.
 """
 
 # Communication
-DEFAULT_SERVER_HOST = "localhost"
+DEFAULT_SERVER_HOST = "0.0.0.0"
 DEFAULT_SERVER_PORT = 6765
 WEBSOCKET_PING_INTERVAL = 30  # seconds
 RECONNECT_DELAY = 5  # seconds

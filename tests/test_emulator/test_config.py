@@ -12,7 +12,7 @@ class TestEmulatorConfig:
         """Test default configuration values."""
         config = EmulatorConfig()
 
-        assert config.server_host == "localhost"
+        assert config.server_host == "0.0.0.0"
         assert config.server_port == 6765
         assert config.base_speed == 50.0
         assert config.acceleration_rate == 0.1
