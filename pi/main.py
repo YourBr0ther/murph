@@ -20,7 +20,10 @@ from shared.constants import (
 from shared.messages import Command, RobotMessage, SensorData, WebRTCAnswer, WebRTCIceCandidate
 
 # Import video components
-from pi.video import CameraManager, MockCameraManager, VideoStreamer
+from pi.video import CameraManager, MockCameraManager, OpenCVCameraManager, VideoStreamer
+
+# Import audio components
+from pi.audio import MicrophoneCapture, MockMicrophoneCapture, BaseMicrophoneCapture
 
 # Import actuators (mock by default, real hardware if on Pi)
 from pi.actuators import (
@@ -30,6 +33,7 @@ from pi.actuators import (
     MotorController,
     DisplayController,
     AudioController,
+    PygameDisplayController,
 )
 
 # Import sensors (mock by default)
@@ -65,6 +69,9 @@ class PiClient:
         server_host: str = DEFAULT_SERVER_HOST,
         server_port: int = DEFAULT_SERVER_PORT,
         use_real_hardware: bool = False,
+        camera_type: str = "auto",
+        display_type: str = "auto",
+        enable_microphone: bool = True,
     ) -> None:
         """
         Initialize Pi client.
@@ -73,10 +80,16 @@ class PiClient:
             server_host: Server brain host address
             server_port: Server brain port
             use_real_hardware: If True, attempt to use real hardware drivers
+            camera_type: "auto", "picamera", "opencv", or "mock"
+            display_type: "auto", "oled", "pygame", or "mock"
+            enable_microphone: If True, enable microphone for audio input
         """
         self._server_host = server_host
         self._server_port = server_port
         self._use_real_hardware = use_real_hardware
+        self._camera_type = camera_type
+        self._display_type = display_type
+        self._enable_microphone = enable_microphone
         self._running = False
 
         # Hardware components (initialized in start())
@@ -86,8 +99,9 @@ class PiClient:
         self._imu = None
         self._touch = None
 
-        # Video streaming
-        self._camera: CameraManager | MockCameraManager | None = None
+        # Video and audio streaming
+        self._camera: CameraManager | MockCameraManager | OpenCVCameraManager | None = None
+        self._microphone: BaseMicrophoneCapture | None = None
         self._video_streamer: VideoStreamer | None = None
 
         # Communication
@@ -210,15 +224,45 @@ class PiClient:
             self._motors = MockMotorController()
             await self._motors.initialize()
 
-        try:
-            from pi.actuators import SSD1306DisplayController
-            self._display = SSD1306DisplayController()
+        # Display: support OLED, pygame, or mock based on display_type
+        if self._display_type == "pygame":
+            # Use pygame for HDMI display
+            self._display = PygameDisplayController()
             if not await self._display.initialize():
-                logger.warning("Real display failed, using mock")
+                logger.warning("Pygame display failed, using mock")
                 self._display = MockDisplayController()
                 await self._display.initialize()
-        except ImportError:
-            logger.warning("SSD1306 driver not available, using mock")
+        elif self._display_type == "oled" or self._display_type == "auto":
+            # Try OLED first (auto or explicit oled)
+            try:
+                from pi.actuators import SSD1306DisplayController
+                self._display = SSD1306DisplayController()
+                if not await self._display.initialize():
+                    logger.warning("Real display failed, trying pygame")
+                    # Try pygame as fallback for auto mode
+                    if self._display_type == "auto":
+                        self._display = PygameDisplayController()
+                        if not await self._display.initialize():
+                            logger.warning("Pygame display also failed, using mock")
+                            self._display = MockDisplayController()
+                            await self._display.initialize()
+                    else:
+                        self._display = MockDisplayController()
+                        await self._display.initialize()
+            except ImportError:
+                logger.warning("SSD1306 driver not available")
+                if self._display_type == "auto":
+                    # Try pygame as fallback
+                    self._display = PygameDisplayController()
+                    if not await self._display.initialize():
+                        logger.warning("Pygame display also failed, using mock")
+                        self._display = MockDisplayController()
+                        await self._display.initialize()
+                else:
+                    self._display = MockDisplayController()
+                    await self._display.initialize()
+        else:
+            # Mock display
             self._display = MockDisplayController()
             await self._display.initialize()
 
@@ -274,27 +318,62 @@ class PiClient:
             await self._touch.shutdown()
 
     async def _init_video(self) -> None:
-        """Initialize camera and video streaming."""
-        logger.info("Initializing video...")
+        """Initialize camera, microphone, and video streaming."""
+        logger.info("Initializing video and audio...")
 
-        # Initialize camera (real or mock)
-        if self._use_real_hardware:
-            self._camera = CameraManager()
+        # Initialize camera based on camera_type
+        if not self._use_real_hardware:
+            self._camera = MockCameraManager()
+            await self._camera.initialize()
+        elif self._camera_type == "opencv":
+            # Explicitly use OpenCV (USB webcam)
+            self._camera = OpenCVCameraManager()
             if not await self._camera.initialize():
-                logger.warning("Real camera failed, using mock")
+                logger.warning("OpenCV camera failed, using mock")
                 self._camera = MockCameraManager()
                 await self._camera.initialize()
+        elif self._camera_type == "picamera":
+            # Explicitly use PiCamera2
+            self._camera = CameraManager()
+            if not await self._camera.initialize():
+                logger.warning("PiCamera2 failed, using mock")
+                self._camera = MockCameraManager()
+                await self._camera.initialize()
+        elif self._camera_type == "auto":
+            # Auto-detect: try PiCamera2 first, then OpenCV, then mock
+            self._camera = CameraManager()
+            if not await self._camera.initialize():
+                logger.warning("PiCamera2 not available, trying OpenCV...")
+                self._camera = OpenCVCameraManager()
+                if not await self._camera.initialize():
+                    logger.warning("OpenCV camera also failed, using mock")
+                    self._camera = MockCameraManager()
+                    await self._camera.initialize()
         else:
+            # Mock camera
             self._camera = MockCameraManager()
             await self._camera.initialize()
 
-        # Create video streamer (will start when connected)
+        # Initialize microphone if enabled
+        if self._enable_microphone and self._use_real_hardware:
+            self._microphone = MicrophoneCapture()
+            # MicrophoneCapture initializes in constructor, start() is called by streamer
+            logger.info("Microphone capture initialized")
+        elif self._enable_microphone:
+            self._microphone = MockMicrophoneCapture()
+            logger.info("Mock microphone initialized")
+        else:
+            self._microphone = None
+            logger.info("Microphone disabled")
+
+        # Create video streamer with optional microphone
         self._video_streamer = VideoStreamer(
             camera=self._camera,
+            microphone=self._microphone,
             on_signaling=self._send_webrtc_signaling,
         )
 
-        logger.info("Video initialized")
+        logger.info("Video and audio initialized")
 
     async def _shutdown_video(self) -> None:
         """Shutdown video streaming."""
@@ -372,12 +451,18 @@ async def main(
     host: str = DEFAULT_SERVER_HOST,
     port: int = DEFAULT_SERVER_PORT,
     use_real_hardware: bool = False,
+    camera_type: str = "auto",
+    display_type: str = "auto",
+    enable_microphone: bool = True,
 ) -> None:
     """Main entry point for the Pi client."""
     client = PiClient(
         server_host=host,
         server_port=port,
         use_real_hardware=use_real_hardware,
+        camera_type=camera_type,
+        display_type=display_type,
+        enable_microphone=enable_microphone,
     )
 
     # Setup signal handlers for graceful shutdown
@@ -420,6 +505,25 @@ def parse_args() -> argparse.Namespace:
         help="Attempt to use real hardware drivers",
     )
     parser.add_argument(
+        "--camera",
+        choices=["auto", "picamera", "opencv", "mock"],
+        default="auto",
+        help="Camera type: auto (try PiCamera2 then OpenCV), picamera (Pi Camera Module), "
+             "opencv (USB webcam), mock (test pattern) (default: auto)",
+    )
+    parser.add_argument(
+        "--display",
+        choices=["auto", "oled", "pygame", "mock"],
+        default="auto",
+        help="Display type: auto (try OLED then pygame), oled (I2C SSD1306), "
+             "pygame (HDMI window), mock (log only) (default: auto)",
+    )
+    parser.add_argument(
+        "--no-microphone",
+        action="store_true",
+        help="Disable microphone audio input",
+    )
+    parser.add_argument(
         "-v", "--verbose",
         action="store_true",
         help="Enable verbose logging",
@@ -437,4 +541,7 @@ if __name__ == "__main__":
         host=args.host,
         port=args.port,
         use_real_hardware=args.real_hardware,
+        camera_type=args.camera,
+        display_type=args.display,
+        enable_microphone=not args.no_microphone,
     ))

@@ -122,7 +122,7 @@ ollama serve
 poetry run python -m server.main
 ```
 
-Dashboard available at: `http://localhost:8081`
+Dashboard available at: `http://localhost:6081`
 
 ---
 
@@ -241,7 +241,7 @@ poetry run python -m pi.main --host 192.168.1.100 --real-hardware -v
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--host` | localhost | Server brain hostname/IP |
-| `--port` | 8765 | Server WebSocket port |
+| `--port` | 6765 | Server WebSocket port |
 | `--real-hardware` | false | Use real Pi hardware (not mocks) |
 | `-v, --verbose` | false | Enable debug logging |
 
@@ -264,7 +264,7 @@ poetry install
 poetry run python -m emulator
 ```
 
-Emulator UI: `http://localhost:8080`
+Emulator UI: `http://localhost:6080`
 
 ### 3. Webcam/Microphone Permissions
 
@@ -364,12 +364,12 @@ Open required ports:
 
 ```bash
 # UFW (Ubuntu)
-sudo ufw allow 8765/tcp  # WebSocket
-sudo ufw allow 8081/tcp  # Dashboard
+sudo ufw allow 6765/tcp  # WebSocket
+sudo ufw allow 6081/tcp  # Dashboard
 
 # firewalld (Fedora/RHEL)
-sudo firewall-cmd --permanent --add-port=8765/tcp
-sudo firewall-cmd --permanent --add-port=8081/tcp
+sudo firewall-cmd --permanent --add-port=6765/tcp
+sudo firewall-cmd --permanent --add-port=6081/tcp
 sudo firewall-cmd --reload
 ```
 
@@ -407,7 +407,7 @@ MURPH_SERVER_HOST=server-hostname.local
 poetry run python -m server.main 2>&1 | head -50
 
 # Common issues:
-# - Port 8765 in use: kill existing process or change port
+# - Port 6765 in use: kill existing process or change port
 # - Missing dependencies: poetry install
 # - Ollama not running: ollama serve
 ```
@@ -419,7 +419,7 @@ poetry run python -m server.main 2>&1 | head -50
 ping 192.168.1.100
 
 # Test WebSocket port
-nc -zv 192.168.1.100 8765
+nc -zv 192.168.1.100 6765
 
 # Check firewall on server
 sudo ufw status

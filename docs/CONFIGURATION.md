@@ -9,7 +9,7 @@ Complete reference for all configuration options and environment variables.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MURPH_SERVER_HOST` | `localhost` | Server hostname or IP |
-| `MURPH_SERVER_PORT` | `8765` | WebSocket server port |
+| `MURPH_SERVER_PORT` | `6765` | WebSocket server port |
 
 ### LLM Provider
 
@@ -88,7 +88,7 @@ These values are defined in `shared/constants.py` and cannot be changed via envi
 | Constant | Value | Description |
 |----------|-------|-------------|
 | `DEFAULT_SERVER_HOST` | `localhost` | Default server host |
-| `DEFAULT_SERVER_PORT` | `8765` | Default WebSocket port |
+| `DEFAULT_SERVER_PORT` | `6765` | Default WebSocket port |
 | `WEBSOCKET_PING_INTERVAL` | `30` | Heartbeat interval (seconds) |
 | `RECONNECT_DELAY` | `5` | Delay between reconnection attempts (seconds) |
 | `MAX_RECONNECT_ATTEMPTS` | `10` | Maximum reconnection attempts |
@@ -197,7 +197,7 @@ The emulator uses `EmulatorConfig` from `emulator/config.py`. These can be passe
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `server_host` | `localhost` | Server hostname |
-| `server_port` | `8765` | Server WebSocket port |
+| `server_port` | `6765` | Server WebSocket port |
 | `base_speed` | `50.0` | Units per second at speed=1.0 |
 | `acceleration_rate` | `0.1` | Speed change per tick |
 | `deceleration_rate` | `0.15` | Braking speed (1.5x accel) |
@@ -269,5 +269,5 @@ NANOGPT_MODEL=gpt-4o-mini
 
 ```bash
 MURPH_SERVER_HOST=192.168.1.100  # Server IP
-MURPH_SERVER_PORT=8765
+MURPH_SERVER_PORT=6765
 ```

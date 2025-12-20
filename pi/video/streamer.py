@@ -1,6 +1,6 @@
 """
 Murph - Video Streamer
-WebRTC video streaming from Pi to server.
+WebRTC video and audio streaming from Pi to server.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from shared.messages import (
 if TYPE_CHECKING:
     from aiortc import RTCPeerConnection, RTCSessionDescription
 
+    from pi.audio.microphone import BaseMicrophoneCapture
     from .camera import CameraManager
 
 logger = logging.getLogger(__name__)
@@ -27,18 +28,20 @@ logger = logging.getLogger(__name__)
 
 class VideoStreamer:
     """
-    WebRTC video streaming from Pi to server.
+    WebRTC video and audio streaming from Pi to server.
 
     Manages:
     - WebRTC peer connection lifecycle
     - SDP offer/answer exchange via signaling callback
     - ICE candidate exchange
     - Video track from camera
+    - Audio track from microphone (optional)
     - Automatic reconnection on failure
 
     Usage:
         streamer = VideoStreamer(
             camera=camera_manager,
+            microphone=microphone_capture,  # Optional
             on_signaling=send_via_websocket,
         )
         await streamer.start()
@@ -50,6 +53,7 @@ class VideoStreamer:
     def __init__(
         self,
         camera: CameraManager,
+        microphone: BaseMicrophoneCapture | None = None,
         on_signaling: Callable[[RobotMessage], Any] | None = None,
     ) -> None:
         """
@@ -57,9 +61,11 @@ class VideoStreamer:
 
         Args:
             camera: CameraManager instance for video capture
+            microphone: MicrophoneCapture instance for audio (optional)
             on_signaling: Callback for sending signaling messages to server
         """
         self._camera = camera
+        self._microphone = microphone
         self._on_signaling = on_signaling
 
         self._pc: RTCPeerConnection | None = None
@@ -72,7 +78,8 @@ class VideoStreamer:
         self._max_reconnect_delay = 60.0
         self._reconnect_task: asyncio.Task[None] | None = None
 
-        logger.info("VideoStreamer initialized")
+        has_audio = "with audio" if microphone else "video only"
+        logger.info(f"VideoStreamer initialized ({has_audio})")
 
     async def start(self) -> None:
         """
@@ -85,6 +92,10 @@ class VideoStreamer:
         # Start camera if not already running
         if not self._camera.is_running:
             await self._camera.start()
+
+        # Start microphone if present
+        if self._microphone:
+            await self._microphone.start()
 
         # Create peer connection and send offer
         await self._create_connection()
@@ -107,6 +118,10 @@ class VideoStreamer:
         if self._pc:
             await self._pc.close()
             self._pc = None
+
+        # Stop microphone if present
+        if self._microphone:
+            await self._microphone.stop()
 
         self._connected = False
         logger.info("VideoStreamer stopped")
@@ -134,6 +149,12 @@ class VideoStreamer:
         # Add video track from camera
         video_track = self._camera.create_video_track()
         self._pc.addTrack(video_track)
+
+        # Add audio track from microphone if available
+        if self._microphone:
+            audio_track = self._microphone.create_audio_track()
+            self._pc.addTrack(audio_track)
+            logger.info("Audio track added to WebRTC connection")
 
         # Create and send offer
         offer = await self._pc.createOffer()
@@ -307,6 +328,8 @@ class VideoStreamer:
             "connected": self._connected,
             "connection_state": self._connection_state,
             "camera_running": self._camera.is_running if self._camera else False,
+            "has_audio": self._microphone is not None,
+            "audio_available": self._microphone.is_available if self._microphone else False,
         }
 
     def __repr__(self) -> str:

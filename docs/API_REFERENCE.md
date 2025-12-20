@@ -10,7 +10,7 @@ Complete protocol and API documentation for Murph robot communication.
 ws://{host}:{port}
 ```
 
-Default: `ws://localhost:8765`
+Default: `ws://localhost:6765`
 
 ### Message Envelope
 
@@ -461,7 +461,7 @@ Command acknowledgment.
 
 ## Dashboard REST API
 
-The dashboard runs on port 8081 by default.
+The dashboard runs on port 6081 by default.
 
 ### Endpoints
 

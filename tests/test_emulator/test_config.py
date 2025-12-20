@@ -13,7 +13,7 @@ class TestEmulatorConfig:
         config = EmulatorConfig()
 
         assert config.server_host == "localhost"
-        assert config.server_port == 8765
+        assert config.server_port == 6765
         assert config.base_speed == 50.0
         assert config.acceleration_rate == 0.1
         assert config.sensor_interval_ms == 100
@@ -81,7 +81,7 @@ class TestEmulatorConfig:
         assert config.base_speed == 75.0
         assert config.video_enabled is False
         # Defaults for unspecified values
-        assert config.server_port == 8765
+        assert config.server_port == 6765
 
     def test_from_dict_ignores_unknown_keys(self) -> None:
         """Test from_dict ignores unknown keys."""

@@ -3,7 +3,7 @@
 ## Prerequisites
 1. Start server: `python -m server.main`
 2. Start emulator: `cd /home/chris/myrobot && .venv/bin/python -m emulator`
-3. Open browser to http://localhost:8080
+3. Open browser to http://localhost:6080
 
 ## Scenario 1: Basic Connection
 
@@ -17,7 +17,7 @@
 - [ ] Raw state panel updates with emulator state
 
 **Steps (continued):**
-3. Start the server on port 8765
+3. Start the server on port 6765
 4. Wait 2-3 seconds
 
 **Expected:**
@@ -184,7 +184,7 @@
 
 ### Server Not Receiving Data
 - Check server logs for WebSocket connection messages
-- Verify port 8765 is not in use: `lsof -i :8765`
+- Verify port 6765 is not in use: `lsof -i :6765`
 - Check emulator logs for "Failed to send" errors
 
 ### Expression Not Changing

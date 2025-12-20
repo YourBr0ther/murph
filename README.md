@@ -2,7 +2,7 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-1105%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-1134%20passing-brightgreen.svg)]()
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 An autonomous desktop pet robot with a Sims-like personality and Wall-E voice.
@@ -71,9 +71,11 @@ See [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md) for complete BOM and wiring
 git clone https://github.com/YourBr0ther/murph.git
 cd murph
 
-# Install dependencies
+# Install Poetry
 pip install poetry
-poetry install
+
+# Install server dependencies (includes PyTorch for face recognition)
+poetry install --with server
 
 # Configure (optional - defaults work for development)
 cp .env.example .env
@@ -82,30 +84,68 @@ cp .env.example .env
 poetry run python -m server.main
 ```
 
-Dashboard: http://localhost:8081
+Dashboard: http://localhost:6081
 
 ### 2. Emulator (No Hardware Required)
 
 ```bash
+# Install emulator dependencies
+poetry install --with emulator
+
 # Run the emulator for testing without a Pi
 poetry run python -m emulator
-
-# Optional: Install webcam support (opencv, aiortc, av)
-poetry install --with emulator
 ```
 
-Emulator UI: http://localhost:8080
+Emulator UI: http://localhost:6080
 
 ### 3. Raspberry Pi Setup
+
+The Pi runs a lightweight client - it does NOT need PyTorch or server dependencies.
 
 ```bash
 # On the Raspberry Pi
 git clone https://github.com/YourBr0ther/murph.git
 cd murph
-poetry install
+
+# Install Poetry
+pip install poetry
+
+# Install ONLY Pi dependencies (excludes heavy server deps like PyTorch)
+poetry install --only main --only pi
 
 # Run with real hardware
 poetry run python -m pi.main --host <SERVER_IP> --real-hardware
+```
+
+**Pi Command-Line Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--host <IP>` | Server IP address |
+| `--port <PORT>` | Server port (default: 6765) |
+| `--real-hardware` | Enable real hardware drivers |
+| `--camera <TYPE>` | `auto`, `picamera`, `opencv`, `mock` |
+| `--display <TYPE>` | `auto`, `oled`, `pygame`, `mock` |
+| `--no-microphone` | Disable microphone input |
+| `-v, --verbose` | Enable debug logging |
+
+**Example for USB webcam + HDMI display (no Pi Camera):**
+
+```bash
+poetry run python -m pi.main \
+    --host 192.168.1.100 \
+    --real-hardware \
+    --camera opencv \
+    --display pygame
+```
+
+**Alternative: pip install (if Poetry is slow on Pi):**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install websockets protobuf pydantic numpy aiortc av opencv-python sounddevice pygame
+python -m pi.main --host <SERVER_IP> --real-hardware --camera opencv --display pygame
 ```
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed installation instructions.

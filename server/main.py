@@ -21,7 +21,7 @@ logger = logging.getLogger("murph.server")
 
 # Dashboard server configuration
 DASHBOARD_HOST = "0.0.0.0"
-DASHBOARD_PORT = 8081
+DASHBOARD_PORT = 6081
 
 
 async def main() -> None:

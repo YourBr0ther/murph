@@ -89,8 +89,8 @@ class TestPiConnectionManagerProperties:
 
     def test_port_property(self):
         """Test port property returns configured port."""
-        manager = PiConnectionManager(port=8765)
-        assert manager.port == 8765
+        manager = PiConnectionManager(port=6765)
+        assert manager.port == 6765
 
 
 class TestPiConnectionManagerServer:
@@ -468,7 +468,7 @@ class TestPiConnectionManagerStatus:
 
     def test_get_status_returns_dict(self):
         """Test get_status returns dict with expected keys."""
-        manager = PiConnectionManager(host="10.0.0.1", port=8765)
+        manager = PiConnectionManager(host="10.0.0.1", port=6765)
 
         status = manager.get_status()
 

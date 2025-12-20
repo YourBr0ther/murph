@@ -27,7 +27,7 @@ ui_clients: list[WebSocket] = []
 
 def create_app(
     server_host: str = "localhost",
-    server_port: int = 8765,
+    server_port: int = 6765,
     video_enabled: bool = True,
     camera_device: int | None = None,
 ) -> FastAPI:
@@ -420,13 +420,13 @@ def main() -> None:
         "--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)"
     )
     parser.add_argument(
-        "--port", type=int, default=8080, help="Port to bind to (default: 8080)"
+        "--port", type=int, default=6080, help="Port to bind to (default: 6080)"
     )
     parser.add_argument(
         "--server-host", default="localhost", help="Server brain host (default: localhost)"
     )
     parser.add_argument(
-        "--server-port", type=int, default=8765, help="Server brain port (default: 8765)"
+        "--server-port", type=int, default=6765, help="Server brain port (default: 6765)"
     )
     parser.add_argument(
         "--video/--no-video",

@@ -27,12 +27,25 @@ aiosqlite = "^0.19"
 py-trees = "^2.2"
 facenet-pytorch = "^2.5"
 torch = "^2.1"
+# WebRTC for receiving Pi video/audio streams
+aiortc = "^1.6"
+av = "^14.0"
 
 [tool.poetry.group.pi.dependencies]
 # Pi-specific deps (install on Pi only)
+# Hardware drivers (uncomment on real Pi):
 # picamera2 = "^0.3"
 # RPi-GPIO = "^0.7"
 # luma-oled = "^3.13"
+# WebRTC streaming (required for video/audio)
+aiortc = "^1.6"
+av = "^14.0"
+# USB webcam support
+opencv-python = "^4.8"
+# Microphone capture
+sounddevice = "^0.4"
+# HDMI display for expressions
+pygame = "^2.5"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4"

@@ -9,6 +9,7 @@ from pi.actuators import (
     MockMotorController,
     MockDisplayController,
     MockAudioController,
+    PygameDisplayController,
 )
 
 
@@ -187,3 +188,43 @@ class TestMockAudioController:
         await speaker.initialize()
         await speaker.play_sound("happy", 1.5)  # Over max
         assert speaker.get_volume() == 1.0
+
+
+class TestPygameDisplayController:
+    """Tests for PygameDisplayController.
+
+    Note: These tests verify the interface works correctly.
+    In headless environments without a display, pygame may not initialize.
+    """
+
+    @pytest.fixture
+    def display(self):
+        return PygameDisplayController()
+
+    def test_interface_consistency(self, display):
+        """Test that PygameDisplayController has same interface as MockDisplayController."""
+        # Check properties exist
+        assert display.name == "PygameDisplayController"
+
+        # Check methods exist
+        assert callable(getattr(display, 'initialize', None))
+        assert callable(getattr(display, 'shutdown', None))
+        assert callable(getattr(display, 'is_ready', None))
+        assert callable(getattr(display, 'set_expression', None))
+        assert callable(getattr(display, 'clear', None))
+        assert callable(getattr(display, 'get_current_expression', None))
+        assert callable(getattr(display, 'get_expression_art', None))
+
+    def test_default_expression(self, display):
+        """Test default expression before initialization."""
+        assert display.get_current_expression() == "neutral"
+
+    def test_is_not_ready_before_init(self, display):
+        """Test that display is not ready before initialization."""
+        assert display.is_ready() is False
+
+    def test_expression_art_available(self, display):
+        """Test that expression art is available."""
+        art = display.get_expression_art()
+        assert isinstance(art, list)
+        assert len(art) > 0
