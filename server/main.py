@@ -7,8 +7,13 @@ import asyncio
 import logging
 import signal
 import sys
+from pathlib import Path
 
+from dotenv import load_dotenv
 import uvicorn
+
+# Load .env file from project root
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 from .orchestrator import CognitionOrchestrator
 from .monitoring import MonitoringServer
