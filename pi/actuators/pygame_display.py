@@ -7,11 +7,17 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import threading
 from typing import Any
 
 from .base import DisplayController
 from .display import EXPRESSIONS
+
+# Force software rendering to avoid OpenGL context issues over SSH
+# Must be set before pygame is imported
+os.environ.setdefault("SDL_VIDEODRIVER", "x11")
+os.environ.setdefault("SDL_RENDER_DRIVER", "software")
 
 logger = logging.getLogger(__name__)
 
