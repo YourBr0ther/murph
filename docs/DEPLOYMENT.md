@@ -63,11 +63,14 @@ Step-by-step deployment instructions for server, Raspberry Pi, and emulator.
 ```bash
 sudo apt update
 sudo apt install -y python3.11 python3.11-venv python3-pip git
+
+# For microphone support (emulator/testing):
+sudo apt install -y libportaudio2 portaudio19-dev
 ```
 
 **macOS:**
 ```bash
-brew install python@3.11 git
+brew install python@3.11 git portaudio
 ```
 
 ### 2. Install Poetry
@@ -176,6 +179,7 @@ sudo apt install -y \
     libcamera-apps \
     python3-libcamera \
     python3-picamera2 \
+    libportaudio2 \
     portaudio19-dev \
     libatlas-base-dev \
     i2c-tools
