@@ -11,7 +11,7 @@ from py_trees.composites import Selector, Sequence
 from .actions import (
     MoveAction,
     TurnAction,
-    PlaySoundAction,
+    SpeakAction,
     SetExpressionAction,
     WaitAction,
     ScanAction,
@@ -109,7 +109,7 @@ def create_explore_tree() -> py_trees.behaviour.Behaviour:
                 children=[
                     PersonDetectedCondition(familiar_only=False, max_distance=150.0),
                     SetExpressionAction("happy"),
-                    PlaySoundAction("greeting"),
+                    SpeakAction("greeting"),
                     StopAction(),
                 ],
             ),
@@ -137,7 +137,7 @@ def create_investigate_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("curious"),
-            PlaySoundAction("curious"),
+            SpeakAction("curious"),
             MoveAction("forward", speed=0.2, duration=1.5),
             ScanAction("quick"),
             WaitAction(2.0),
@@ -204,7 +204,7 @@ def create_greet_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("happy"),
-            PlaySoundAction("greeting"),
+            SpeakAction("greeting"),
             MoveAction("forward", speed=0.3, duration=1.0),
             WaitAction(0.5),
         ],
@@ -233,7 +233,7 @@ def create_interact_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("playful"),
-            PlaySoundAction("playful"),
+            SpeakAction("playful"),
             MoveAction("forward", speed=0.2, duration=0.5),
             MoveAction("backward", speed=0.2, duration=0.5),
             WaitAction(1.0),
@@ -265,12 +265,12 @@ def create_nuzzle_tree() -> py_trees.behaviour.Behaviour:
         children=[
             # Approach with love
             SetExpressionAction("love"),
-            PlaySoundAction("affection"),
+            SpeakAction("affection"),
             MoveAction("forward", speed=0.15, duration=1.0),
             # Rhythmic nuzzling motions (gentle forward-back)
             MoveAction("forward", speed=0.1, duration=0.3),
             MoveAction("backward", speed=0.1, duration=0.2),
-            PlaySoundAction("happy"),
+            SpeakAction("happy"),
             MoveAction("forward", speed=0.1, duration=0.3),
             MoveAction("backward", speed=0.1, duration=0.2),
             # Side nuzzle (slight turns)
@@ -280,7 +280,7 @@ def create_nuzzle_tree() -> py_trees.behaviour.Behaviour:
             MoveAction("forward", speed=0.1, duration=0.2),
             TurnAction(angle=15.0, speed=0.2),
             # Final affection
-            PlaySoundAction("affection"),
+            SpeakAction("affection"),
             SetExpressionAction("happy"),
             WaitAction(1.0),
         ],
@@ -296,21 +296,21 @@ def create_be_petted_tree() -> py_trees.behaviour.Behaviour:
         children=[
             # Initial happy response
             SetExpressionAction("happy"),
-            PlaySoundAction("happy"),
+            SpeakAction("happy"),
             # Lean into the petting (slight forward movement)
             MoveAction("forward", speed=0.1, duration=0.3),
             WaitAction(2.0),
             # Blissful expression
             SetExpressionAction("love"),
-            PlaySoundAction("affection"),
+            SpeakAction("affection"),
             WaitAction(2.5),
             # Another lean
             MoveAction("forward", speed=0.08, duration=0.2),
-            PlaySoundAction("happy"),
+            SpeakAction("happy"),
             WaitAction(2.5),
             # Contentment
             SetExpressionAction("happy"),
-            PlaySoundAction("affection"),
+            SpeakAction("affection"),
             WaitAction(2.0),
         ],
     )
@@ -325,22 +325,22 @@ def create_cuddle_tree() -> py_trees.behaviour.Behaviour:
         children=[
             # Initial settling
             SetExpressionAction("love"),
-            PlaySoundAction("affection"),
+            SpeakAction("affection"),
             # Gentle settling movements (like getting comfortable)
             TurnAction(angle=5.0, speed=0.1),
             TurnAction(angle=-5.0, speed=0.1),
             WaitAction(3.0),
             # Periodic contentment sounds
-            PlaySoundAction("happy"),
+            SpeakAction("happy"),
             WaitAction(4.0),
             # Slight nuzzle motion
             MoveAction("forward", speed=0.1, duration=0.2),
             MoveAction("backward", speed=0.1, duration=0.2),
-            PlaySoundAction("affection"),
+            SpeakAction("affection"),
             WaitAction(4.0),
             # Final contentment
             SetExpressionAction("happy"),
-            PlaySoundAction("happy"),
+            SpeakAction("happy"),
             WaitAction(3.0),
         ],
     )
@@ -360,9 +360,9 @@ def create_request_attention_tree() -> py_trees.behaviour.Behaviour:
                 children=[
                     PersonDetectedCondition(familiar_only=False),
                     SetExpressionAction("happy"),
-                    PlaySoundAction("happy"),
+                    SpeakAction("happy"),
                     MoveAction("forward", speed=0.3, duration=0.5),
-                    PlaySoundAction("greeting"),
+                    SpeakAction("greeting"),
                 ],
             ),
             # Branch 2: No person - try harder to get attention
@@ -371,16 +371,16 @@ def create_request_attention_tree() -> py_trees.behaviour.Behaviour:
                 memory=True,
                 children=[
                     SetExpressionAction("curious"),
-                    PlaySoundAction("curious"),
+                    SpeakAction("curious"),
                     # Attention-getting movements
                     MoveAction("forward", speed=0.25, duration=0.4),
                     MoveAction("backward", speed=0.25, duration=0.4),
-                    PlaySoundAction("playful"),
+                    SpeakAction("playful"),
                     # Look around hoping to be noticed
                     TurnAction(angle=30.0, speed=0.4),
                     TurnAction(angle=-60.0, speed=0.4),
                     TurnAction(angle=30.0, speed=0.4),
-                    PlaySoundAction("curious"),
+                    SpeakAction("curious"),
                 ],
             ),
         ],
@@ -397,7 +397,7 @@ def create_play_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("playful"),
-            PlaySoundAction("playful"),
+            SpeakAction("playful"),
             MoveAction("forward", speed=0.5, duration=1.0),
             TurnAction(angle=180.0, speed=0.6),
             MoveAction("forward", speed=0.5, duration=1.0),
@@ -413,7 +413,7 @@ def create_chase_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("playful"),
-            PlaySoundAction("playful"),
+            SpeakAction("playful"),
             MoveAction("forward", speed=0.7, duration=2.0),
             TurnAction(angle=30.0, speed=0.5),
             MoveAction("forward", speed=0.7, duration=1.5),
@@ -429,7 +429,7 @@ def create_bounce_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("playful"),
-            PlaySoundAction("happy"),
+            SpeakAction("happy"),
             # Bounce 1: Forward-back
             MoveAction("forward", speed=0.5, duration=0.25),
             MoveAction("backward", speed=0.5, duration=0.25),
@@ -441,7 +441,7 @@ def create_bounce_tree() -> py_trees.behaviour.Behaviour:
             TurnAction(angle=-60.0, speed=0.6),
             MoveAction("forward", speed=0.5, duration=0.25),
             MoveAction("backward", speed=0.5, duration=0.25),
-            PlaySoundAction("playful"),
+            SpeakAction("playful"),
             # Final spin for excitement
             TurnAction(angle=180.0, speed=0.8),
             SetExpressionAction("happy"),
@@ -466,11 +466,11 @@ def create_pounce_tree() -> py_trees.behaviour.Behaviour:
             WaitAction(0.3),
             # The pounce!
             SetExpressionAction("playful"),
-            PlaySoundAction("playful"),
+            SpeakAction("playful"),
             MoveAction("forward", speed=0.9, duration=0.4),
             # Landing
             StopAction(),
-            PlaySoundAction("happy"),
+            SpeakAction("happy"),
         ],
     )
 
@@ -500,7 +500,7 @@ def create_sleep_tree() -> py_trees.behaviour.Behaviour:
         children=[
             StopAction(),
             SetExpressionAction("sleepy"),
-            PlaySoundAction("sleepy"),
+            SpeakAction("sleepy"),
             WaitAction(60.0),
         ],
     )
@@ -543,7 +543,7 @@ def create_settle_tree() -> py_trees.behaviour.Behaviour:
             TurnAction(angle=-10.0, speed=0.15),
             # Final settle with sigh
             SetExpressionAction("sleepy"),
-            PlaySoundAction("sigh"),
+            SpeakAction("sigh"),
             WaitAction(3.0),
         ],
     )
@@ -581,7 +581,7 @@ def create_retreat_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("scared"),
-            PlaySoundAction("alert"),
+            SpeakAction("alert"),
             MoveAction("backward", speed=0.6, duration=1.5),
             StopAction(),
         ],
@@ -597,7 +597,7 @@ def create_hide_tree() -> py_trees.behaviour.Behaviour:
         children=[
             # Initial scare and retreat
             SetExpressionAction("scared"),
-            PlaySoundAction("alert"),
+            SpeakAction("alert"),
             MoveAction("backward", speed=0.4, duration=1.0),
             TurnAction(angle=180.0, speed=0.5),
             MoveAction("forward", speed=0.5, duration=2.0),
@@ -616,7 +616,7 @@ def create_hide_tree() -> py_trees.behaviour.Behaviour:
             WaitAction(2.0),
             # Danger seems to have passed - relief
             SetExpressionAction("neutral"),
-            PlaySoundAction("sigh"),
+            SpeakAction("sigh"),
             WaitAction(2.0),
         ],
     )
@@ -632,7 +632,7 @@ def create_approach_trusted_tree() -> py_trees.behaviour.Behaviour:
             SetExpressionAction("scared"),
             MoveAction("forward", speed=0.4, duration=3.0),
             SetExpressionAction("happy"),
-            PlaySoundAction("happy"),
+            SpeakAction("happy"),
         ],
     )
 
@@ -691,7 +691,7 @@ def create_sigh_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("sad"),
-            PlaySoundAction("sigh"),
+            SpeakAction("sigh"),
             WaitAction(2.0),
             SetExpressionAction("neutral"),
         ],
@@ -711,7 +711,7 @@ def create_mope_tree() -> py_trees.behaviour.Behaviour:
             TurnAction(angle=30.0, speed=0.2),
             WaitAction(1.5),
             MoveAction("forward", speed=0.1, duration=1.0),
-            PlaySoundAction("sad"),
+            SpeakAction("sad"),
             WaitAction(2.0),
         ],
     )
@@ -727,7 +727,7 @@ def create_perk_up_hopeful_tree() -> py_trees.behaviour.Behaviour:
             SetExpressionAction("alert"),
             ScanAction("quick"),
             SetExpressionAction("curious"),
-            PlaySoundAction("curious"),
+            SpeakAction("curious"),
             WaitAction(2.0),
             SetExpressionAction("sad"),
         ],
@@ -748,7 +748,7 @@ def create_seek_company_tree() -> py_trees.behaviour.Behaviour:
                 children=[
                     PersonDetectedCondition(familiar_only=False),
                     SetExpressionAction("happy"),
-                    PlaySoundAction("happy"),
+                    SpeakAction("happy"),
                     MoveAction("forward", speed=0.3, duration=1.0),
                 ],
             ),
@@ -758,7 +758,7 @@ def create_seek_company_tree() -> py_trees.behaviour.Behaviour:
                 memory=True,
                 children=[
                     SetExpressionAction("curious"),
-                    PlaySoundAction("curious"),
+                    SpeakAction("curious"),
                     ScanAction("partial"),
                     MoveAction("forward", speed=0.3, duration=2.0),
                     TurnAction(angle=90.0, speed=0.4),
@@ -788,7 +788,7 @@ def create_go_home_tree() -> py_trees.behaviour.Behaviour:
                 children=[
                     TriggerActiveCondition("at_home"),
                     SetExpressionAction("happy"),
-                    PlaySoundAction("happy"),
+                    SpeakAction("happy"),
                 ],
             ),
             # Branch 2: Position lost - scan first
@@ -902,7 +902,7 @@ def create_explore_unfamiliar_tree() -> py_trees.behaviour.Behaviour:
                 children=[
                     PersonDetectedCondition(familiar_only=False),
                     SetExpressionAction("happy"),
-                    PlaySoundAction("greeting"),
+                    SpeakAction("greeting"),
                     StopAction(),
                 ],
             ),
@@ -922,7 +922,7 @@ def create_explore_unfamiliar_tree() -> py_trees.behaviour.Behaviour:
                 memory=True,
                 children=[
                     SetExpressionAction("curious"),
-                    PlaySoundAction("curious"),
+                    SpeakAction("curious"),
                     NavigateToLandmarkAction(target_type="unfamiliar_zone", timeout=30.0),
                     ScanAction("partial"),
                 ],
@@ -974,7 +974,7 @@ def create_flee_danger_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("scared"),
-            PlaySoundAction("alert"),
+            SpeakAction("alert"),
             MoveTowardSafetyAction(retreat_duration=1.5, retreat_speed=0.6),
             ScanAction("quick"),
             SetExpressionAction("alert"),
@@ -1007,7 +1007,7 @@ def create_retreat_to_safe_tree() -> py_trees.behaviour.Behaviour:
                     SetExpressionAction("scared"),
                     NavigateToLandmarkAction(target_type="safe_zone", timeout=20.0),
                     SetExpressionAction("neutral"),
-                    PlaySoundAction("happy"),
+                    SpeakAction("happy"),
                 ],
             ),
         ],
@@ -1046,7 +1046,7 @@ def create_wake_up_tree() -> py_trees.behaviour.Behaviour:
             MoveAction("forward", speed=0.1, duration=0.3),
             MoveAction("backward", speed=0.1, duration=0.3),
             SetExpressionAction("happy"),
-            PlaySoundAction("greeting"),
+            SpeakAction("greeting"),
             ScanAction("partial"),
         ],
     )
@@ -1080,7 +1080,7 @@ def create_energetic_start_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("playful"),
-            PlaySoundAction("playful"),
+            SpeakAction("playful"),
             MoveAction("forward", speed=0.5, duration=1.0),
             TurnAction(angle=180.0, speed=0.5),
             MoveAction("forward", speed=0.5, duration=1.0),
@@ -1104,7 +1104,7 @@ def create_midday_activity_tree() -> py_trees.behaviour.Behaviour:
             TurnAction(angle=45.0, speed=0.3),
             SetExpressionAction("playful"),
             MoveAction("forward", speed=0.5, duration=1.5),
-            PlaySoundAction("playful"),
+            SpeakAction("playful"),
             TurnAction(angle=-90.0, speed=0.3),
         ],
     )
@@ -1156,7 +1156,7 @@ def create_pre_sleep_yawn_tree() -> py_trees.behaviour.Behaviour:
         children=[
             SetExpressionAction("sleepy"),
             WaitAction(1.0),
-            PlaySoundAction("yawn"),
+            SpeakAction("yawn"),
             WaitAction(1.5),
             SetExpressionAction("neutral"),
         ],
@@ -1208,7 +1208,7 @@ def create_yawn_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("sleepy"),
-            PlaySoundAction("yawn"),
+            SpeakAction("yawn"),
             WaitAction(2.0),
             SetExpressionAction("neutral"),
         ],
@@ -1246,7 +1246,7 @@ def create_shake_off_tree() -> py_trees.behaviour.Behaviour:
             TurnAction(angle=40.0, speed=0.6),
             TurnAction(angle=-20.0, speed=0.6),
             SetExpressionAction("happy"),
-            PlaySoundAction("happy"),
+            SpeakAction("happy"),
         ],
     )
 
@@ -1261,7 +1261,7 @@ def create_sneeze_tree() -> py_trees.behaviour.Behaviour:
             SetExpressionAction("neutral"),
             WaitAction(0.3),
             SetExpressionAction("surprised"),
-            PlaySoundAction("sneeze"),
+            SpeakAction("sneeze"),
             MoveAction("backward", speed=0.2, duration=0.2),
             SetExpressionAction("happy"),
             WaitAction(0.5),
@@ -1277,7 +1277,7 @@ def create_happy_wiggle_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("happy"),
-            PlaySoundAction("happy"),
+            SpeakAction("happy"),
             TurnAction(angle=15.0, speed=0.5),
             TurnAction(angle=-30.0, speed=0.5),
             TurnAction(angle=30.0, speed=0.5),
@@ -1298,7 +1298,7 @@ def create_curious_tilt_tree() -> py_trees.behaviour.Behaviour:
             TurnAction(angle=25.0, speed=0.2),
             WaitAction(1.5),
             TurnAction(angle=-25.0, speed=0.2),
-            PlaySoundAction("curious"),
+            SpeakAction("curious"),
         ],
     )
 
@@ -1312,7 +1312,7 @@ def create_contented_sigh_tree() -> py_trees.behaviour.Behaviour:
         children=[
             SetExpressionAction("happy"),
             WaitAction(1.0),
-            PlaySoundAction("content"),
+            SpeakAction("content"),
             SetExpressionAction("sleepy"),
             WaitAction(1.5),
             SetExpressionAction("neutral"),
@@ -1332,7 +1332,7 @@ def create_dropped_recovery_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("scared"),
-            PlaySoundAction("alert"),
+            SpeakAction("alert"),
             StopAction(),
             WaitAction(1.0),
             SetExpressionAction("alert"),
@@ -1385,7 +1385,7 @@ def create_new_object_investigation_tree() -> py_trees.behaviour.Behaviour:
                 memory=True,
                 children=[
                     SetExpressionAction("curious"),
-                    PlaySoundAction("curious"),
+                    SpeakAction("curious"),
                     MoveAction("forward", speed=0.15, duration=1.0),
                     ScanAction("quick"),
                     WaitAction(1.0),
@@ -1405,7 +1405,7 @@ def create_person_left_sad_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("sad"),
-            PlaySoundAction("sad"),
+            SpeakAction("sad"),
             ScanAction("partial"),  # Look around for them
             WaitAction(2.0),
             SetExpressionAction("neutral"),
@@ -1422,7 +1422,7 @@ def create_touched_unexpectedly_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             SetExpressionAction("surprised"),
-            PlaySoundAction("surprised"),
+            SpeakAction("surprised"),
             MoveAction("backward", speed=0.3, duration=0.3),
             ScanAction("quick"),
             SetExpressionAction("alert"),
@@ -1444,7 +1444,7 @@ def create_picked_up_happy_tree() -> py_trees.behaviour.Behaviour:
                 children=[
                     TriggerActiveCondition("familiar_person"),
                     SetExpressionAction("happy"),
-                    PlaySoundAction("happy"),
+                    SpeakAction("happy"),
                     WaitAction(2.0),
                 ],
             ),
