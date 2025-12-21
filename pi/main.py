@@ -24,6 +24,7 @@ from pi.video import CameraManager, MockCameraManager, OpenCVCameraManager, Vide
 
 # Import audio components
 from pi.audio import MicrophoneCapture, MockMicrophoneCapture, BaseMicrophoneCapture
+from pi.audio.microphone import detect_active_microphone
 
 # Import actuators (mock by default, real hardware if on Pi)
 from pi.actuators import (
@@ -372,9 +373,14 @@ class PiClient:
                     device = int(device)  # Try as index
                 except ValueError:
                     pass  # Keep as string (device name)
+            else:
+                # Auto-detect: find which microphone is picking up sound
+                logger.info("Auto-detecting active microphone (make some noise!)...")
+                device = detect_active_microphone(sample_duration=1.0)
+
             self._microphone = MicrophoneCapture(device=device)
             # MicrophoneCapture initializes in constructor, start() is called by streamer
-            device_info = f" (device: {device})" if device else " (default device)"
+            device_info = f" (device: {device})" if device is not None else " (default device)"
             logger.info(f"Microphone capture initialized{device_info}")
         elif self._enable_microphone:
             self._microphone = MockMicrophoneCapture()
@@ -547,7 +553,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="Microphone device name or index (e.g., 'Logitech' or '2'). "
-             "Run with --list-audio-devices to see available devices.",
+             "If not specified, auto-detects by testing which device picks up sound.",
     )
     parser.add_argument(
         "--list-audio-devices",

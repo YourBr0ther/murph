@@ -29,6 +29,90 @@ except ImportError:
     HAS_NUMPY = False
 
 
+def detect_active_microphone(
+    sample_duration: float = 1.0,
+    threshold: float = 0.02,
+) -> int | None:
+    """
+    Auto-detect which microphone is actively picking up sound.
+
+    Tests each available input device by recording briefly and checking
+    if it picks up any audio above the noise threshold.
+
+    Args:
+        sample_duration: How long to sample each device (seconds)
+        threshold: RMS threshold to consider as "hearing something"
+
+    Returns:
+        Device index that's hearing sound, or None if none found
+    """
+    try:
+        import sounddevice as sd
+        import numpy as np
+    except ImportError:
+        logger.warning("sounddevice/numpy not available for auto-detection")
+        return None
+
+    devices = sd.query_devices()
+    input_devices = [
+        (i, d) for i, d in enumerate(devices)
+        if d['max_input_channels'] > 0
+    ]
+
+    if not input_devices:
+        logger.warning("No input devices found")
+        return None
+
+    logger.info(f"Testing {len(input_devices)} input devices for audio...")
+
+    best_device = None
+    best_level = 0.0
+
+    for idx, device in input_devices:
+        try:
+            # Record a short sample from this device
+            sample_rate = int(device['default_samplerate'])
+            frames = int(sample_rate * sample_duration)
+
+            logger.debug(f"Testing device {idx}: {device['name']}")
+
+            recording = sd.rec(
+                frames,
+                samplerate=sample_rate,
+                channels=1,
+                device=idx,
+                dtype=np.float32,
+            )
+            sd.wait()  # Wait for recording to complete
+
+            # Calculate RMS level
+            rms = float(np.sqrt(np.mean(recording**2)))
+            logger.debug(f"  Device {idx} ({device['name']}): RMS={rms:.4f}")
+
+            if rms > best_level:
+                best_level = rms
+                best_device = idx
+
+        except Exception as e:
+            logger.debug(f"  Device {idx} ({device['name']}): Failed - {e}")
+            continue
+
+    if best_device is not None and best_level > threshold:
+        device_name = devices[best_device]['name']
+        logger.info(f"Auto-detected microphone: {best_device} ({device_name}) with level {best_level:.4f}")
+        return best_device
+    elif best_device is not None:
+        device_name = devices[best_device]['name']
+        logger.warning(
+            f"Best device {best_device} ({device_name}) has low level ({best_level:.4f}). "
+            f"Try making noise during startup, or specify --mic-device manually."
+        )
+        return best_device
+    else:
+        logger.warning("No working microphone detected")
+        return None
+
+
 @dataclass
 class AudioState:
     """Current state of audio capture."""
