@@ -254,9 +254,11 @@ class AudioReceiver:
                     # Log every 50 frames (~1 second at 20ms/frame)
                     if self._frames_received % 50 == 0:
                         buffer_ms = self._buffer.get_audio_duration_ms()
+                        chunk_size = len(audio_bytes)
                         logger.info(
                             f"Audio: frames={self._frames_received}, RMS={rms:.4f}, "
-                            f"voice={is_voice}, buffer={buffer_ms:.0f}ms"
+                            f"voice={is_voice}, buffer={buffer_ms:.0f}ms, "
+                            f"chunk={chunk_size}b, speaking={self._buffer.is_speaking}"
                         )
 
                     # Add to buffer, check for complete utterance
