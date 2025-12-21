@@ -78,6 +78,7 @@ class PiClient:
         camera_type: str = "auto",
         display_type: str = "auto",
         enable_microphone: bool = True,
+        mic_device: str | int | None = None,
     ) -> None:
         """
         Initialize Pi client.
@@ -89,6 +90,7 @@ class PiClient:
             camera_type: "auto", "picamera", "opencv", or "mock"
             display_type: "auto", "oled", "pygame", or "mock"
             enable_microphone: If True, enable microphone for audio input
+            mic_device: Microphone device name or index (None for default)
         """
         self._server_host = server_host
         self._server_port = server_port
@@ -96,6 +98,7 @@ class PiClient:
         self._camera_type = camera_type
         self._display_type = display_type
         self._enable_microphone = enable_microphone
+        self._mic_device = mic_device
         self._running = False
 
         # Hardware components (initialized in start())
@@ -362,9 +365,17 @@ class PiClient:
 
         # Initialize microphone if enabled
         if self._enable_microphone and self._use_real_hardware:
-            self._microphone = MicrophoneCapture()
+            # Parse device - could be index or name
+            device = self._mic_device
+            if device is not None:
+                try:
+                    device = int(device)  # Try as index
+                except ValueError:
+                    pass  # Keep as string (device name)
+            self._microphone = MicrophoneCapture(device=device)
             # MicrophoneCapture initializes in constructor, start() is called by streamer
-            logger.info("Microphone capture initialized")
+            device_info = f" (device: {device})" if device else " (default device)"
+            logger.info(f"Microphone capture initialized{device_info}")
         elif self._enable_microphone:
             self._microphone = MockMicrophoneCapture()
             logger.info("Mock microphone initialized")
@@ -460,6 +471,7 @@ async def main(
     camera_type: str = "auto",
     display_type: str = "auto",
     enable_microphone: bool = True,
+    mic_device: str | int | None = None,
 ) -> None:
     """Main entry point for the Pi client."""
     client = PiClient(
@@ -469,6 +481,7 @@ async def main(
         camera_type=camera_type,
         display_type=display_type,
         enable_microphone=enable_microphone,
+        mic_device=mic_device,
     )
 
     # Setup signal handlers for graceful shutdown
@@ -530,6 +543,18 @@ def parse_args() -> argparse.Namespace:
         help="Disable microphone audio input",
     )
     parser.add_argument(
+        "--mic-device",
+        type=str,
+        default=None,
+        help="Microphone device name or index (e.g., 'Logitech' or '2'). "
+             "Run with --list-audio-devices to see available devices.",
+    )
+    parser.add_argument(
+        "--list-audio-devices",
+        action="store_true",
+        help="List available audio input devices and exit",
+    )
+    parser.add_argument(
         "-v", "--verbose",
         action="store_true",
         help="Enable verbose logging",
@@ -537,8 +562,32 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def list_audio_devices() -> None:
+    """List available audio input devices."""
+    try:
+        import sounddevice as sd
+        print("\nAvailable audio input devices:")
+        print("-" * 60)
+        devices = sd.query_devices()
+        for i, d in enumerate(devices):
+            if d['max_input_channels'] > 0:
+                default = " (DEFAULT)" if i == sd.default.device[0] else ""
+                print(f"  {i}: {d['name']}{default}")
+                print(f"      Channels: {d['max_input_channels']}, "
+                      f"Sample Rate: {d['default_samplerate']:.0f} Hz")
+        print()
+    except ImportError:
+        print("Error: sounddevice not installed. Run: pip install sounddevice")
+    except Exception as e:
+        print(f"Error listing devices: {e}")
+
+
 if __name__ == "__main__":
     args = parse_args()
+
+    if args.list_audio_devices:
+        list_audio_devices()
+        exit(0)
 
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -550,4 +599,5 @@ if __name__ == "__main__":
         camera_type=args.camera,
         display_type=args.display,
         enable_microphone=not args.no_microphone,
+        mic_device=args.mic_device,
     ))
