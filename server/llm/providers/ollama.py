@@ -122,7 +122,8 @@ class OllamaProvider(LLMProvider):
 
         except Exception as e:
             self._stats.record_error()
-            logger.error(f"Ollama completion error: {e}")
+            error_msg = str(e) if str(e) else type(e).__name__
+            logger.error(f"Ollama completion error: {error_msg}")
             raise
 
     async def complete_with_vision(
@@ -204,7 +205,8 @@ class OllamaProvider(LLMProvider):
 
         except Exception as e:
             self._stats.record_error()
-            logger.error(f"Ollama vision error: {e}")
+            error_msg = str(e) if str(e) else type(e).__name__
+            logger.error(f"Ollama vision error: {error_msg}")
             raise
 
     def _encode_image(self, image: np.ndarray, quality: int = 85) -> str:
