@@ -246,6 +246,13 @@ class AudioReceiver:
                     # Convert to bytes (s16 format)
                     audio_bytes = bytes(frame.planes[0])
 
+                    # Log first frame to debug size issues
+                    if self._frames_received == 1:
+                        logger.info(
+                            f"First audio frame: {len(audio_bytes)} bytes, "
+                            f"samples={frame.samples}, rate={frame.sample_rate}"
+                        )
+
                     # Server-side VAD check (double-check Pi's VAD)
                     samples = np.frombuffer(audio_bytes, dtype=np.int16)
                     rms = np.sqrt(np.mean(samples.astype(np.float32) ** 2)) / 32768.0
