@@ -335,6 +335,9 @@ class MicrophoneCapture(BaseMicrophoneCapture):
     # Voice activity detection threshold
     VAD_THRESHOLD = 0.15  # Audio level above this is considered voice
 
+    # Audio gain multiplier for quiet microphones (e.g., webcam mics)
+    AUDIO_GAIN = 5.0
+
     def __init__(
         self,
         sample_rate: int = 16000,
@@ -428,8 +431,10 @@ class MicrophoneCapture(BaseMicrophoneCapture):
 
                 # Store raw audio for streaming
                 with self._buffer_lock:
-                    # Convert to 16-bit PCM and store
-                    audio_bytes = (indata * 32767).astype(np.int16).tobytes()
+                    # Apply gain and convert to 16-bit PCM
+                    # Clip to prevent overflow after gain application
+                    amplified = np.clip(indata * self.AUDIO_GAIN, -1.0, 1.0)
+                    audio_bytes = (amplified * 32767).astype(np.int16).tobytes()
                     self._audio_buffer.append(audio_bytes)
 
                 # Log every ~1 second (assuming 16kHz, 1024 chunk = ~64ms per callback)

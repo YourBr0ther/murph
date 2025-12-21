@@ -809,8 +809,8 @@ class CognitionOrchestrator:
             logger.warning("Cannot learn face: no long-term memory")
             return
 
-        # Get current frame
-        frame = self._frame_buffer.get_latest()
+        # Get current frame (returns tuple of frame, timestamp)
+        frame, _ = self._frame_buffer.get_latest()
         if frame is None:
             logger.warning("Cannot learn face: no video frame available")
             return
@@ -1099,6 +1099,33 @@ class CognitionOrchestrator:
 
         self._requested_behavior = behavior_name
         logger.info(f"Dashboard requested behavior: {behavior_name}")
+
+    async def register_face(self, name: str) -> bool:
+        """
+        Register the currently visible face with a name (for dashboard control).
+
+        This provides a manual way to teach Murph someone's face when voice
+        commands are not available or not working.
+
+        Args:
+            name: Name to associate with the face (e.g., "Chris")
+
+        Returns:
+            True if face was successfully registered, False otherwise
+        """
+        if not name or not name.strip():
+            logger.warning("Cannot register face: no name provided")
+            return False
+
+        name = name.strip()
+        logger.info(f"Dashboard requested face registration for: {name}")
+
+        try:
+            await self._learn_current_face(name)
+            return True
+        except Exception as e:
+            logger.error(f"Face registration failed: {e}")
+            return False
 
     def __str__(self) -> str:
         return (
