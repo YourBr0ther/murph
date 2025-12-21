@@ -205,7 +205,8 @@ class VisionAnalyzer:
 
         except json.JSONDecodeError as e:
             self._parse_errors += 1
-            logger.warning(f"Failed to parse scene analysis JSON: {e}")
+            preview = json_str[:100] if json_str else "(empty)"
+            logger.warning(f"Failed to parse scene analysis JSON: {e}. Content: {preview}")
             # Return basic analysis from raw text
             return SceneAnalysis(
                 description=content[:200],

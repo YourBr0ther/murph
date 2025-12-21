@@ -98,6 +98,13 @@ class OllamaProvider(LLMProvider):
 
             latency_ms = (time.time() - start) * 1000
 
+            # Check for error response from Ollama
+            if "error" in data:
+                raise RuntimeError(f"Ollama error: {data['error']}")
+
+            # Extract content
+            content = data.get("message", {}).get("content", "")
+
             # Extract usage info
             usage = {
                 "prompt_tokens": data.get("prompt_eval_count", 0),
@@ -113,7 +120,7 @@ class OllamaProvider(LLMProvider):
             )
 
             return LLMResponse(
-                content=data["message"]["content"],
+                content=content,
                 model=data.get("model", model),
                 usage=usage,
                 latency_ms=latency_ms,
@@ -181,6 +188,15 @@ class OllamaProvider(LLMProvider):
 
             latency_ms = (time.time() - start) * 1000
 
+            # Check for error response from Ollama
+            if "error" in data:
+                raise RuntimeError(f"Ollama error: {data['error']}")
+
+            # Check for valid message content
+            content = data.get("message", {}).get("content", "")
+            if not content:
+                logger.warning(f"Ollama returned empty content: {data}")
+
             # Extract usage info
             usage = {
                 "prompt_tokens": data.get("prompt_eval_count", 0),
@@ -196,7 +212,7 @@ class OllamaProvider(LLMProvider):
             )
 
             return LLMResponse(
-                content=data["message"]["content"],
+                content=content,
                 model=data.get("model", self._vision_model),
                 usage=usage,
                 latency_ms=latency_ms,
