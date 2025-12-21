@@ -82,24 +82,22 @@ class MicrophoneAudioTrack:
                 # Frame pacing - sleep to match target frame rate
                 await asyncio.sleep(cls.FRAME_DURATION_MS / 1000)
 
-                # Check VAD state from microphone
-                is_voice = self._microphone.is_voice_detected()
-
-                if is_voice:
-                    # Get actual audio from microphone buffer
-                    audio_data = self._microphone.get_audio_chunk()
-                    if audio_data is None:
-                        audio_data = self._create_silence()
-                    self._is_speaking = True
-                    self._silence_start = None
-                else:
+                # Always send real audio - let server do its own VAD
+                # This ensures the server hears everything for accurate STT
+                audio_data = self._microphone.get_audio_chunk()
+                if audio_data is None:
                     audio_data = self._create_silence()
 
-                    if self._is_speaking:
-                        if self._silence_start is None:
-                            self._silence_start = time.time()
-                        elif (time.time() - self._silence_start) * 1000 > VAD_SILENCE_DURATION_MS:
-                            self._is_speaking = False
+                # Track VAD state for local reference
+                is_voice = self._microphone.is_voice_detected()
+                if is_voice:
+                    self._is_speaking = True
+                    self._silence_start = None
+                elif self._is_speaking:
+                    if self._silence_start is None:
+                        self._silence_start = time.time()
+                    elif (time.time() - self._silence_start) * 1000 > VAD_SILENCE_DURATION_MS:
+                        self._is_speaking = False
 
                 # Ensure audio_data is correct size
                 expected_bytes = cls.SAMPLES_PER_FRAME * 2
