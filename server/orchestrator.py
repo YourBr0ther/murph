@@ -741,6 +741,10 @@ class CognitionOrchestrator:
         elif command.action == "speak":
             # Speaking is handled by the response
             pass
+        elif command.action == "learn_face":
+            # Learn the current face with the given name
+            name = command.params.get("name", "Friend")
+            await self._learn_current_face(name)
         else:
             logger.warning(f"Unknown direct action: {command.action}")
 
@@ -790,6 +794,100 @@ class CognitionOrchestrator:
 
         except Exception as e:
             logger.error(f"Speech response error: {e}")
+
+    async def _learn_current_face(self, name: str) -> None:
+        """
+        Learn the face currently visible to Murph.
+
+        Captures the current frame, detects face, encodes it, and saves
+        to long-term memory with the given name.
+
+        Args:
+            name: Name to associate with the face
+        """
+        if not self._long_term_memory:
+            logger.warning("Cannot learn face: no long-term memory")
+            return
+
+        # Get current frame
+        frame = self._frame_buffer.get_latest()
+        if frame is None:
+            logger.warning("Cannot learn face: no video frame available")
+            return
+
+        # Need vision processor for face detection/encoding
+        if not self._vision_processor.is_initialized:
+            logger.warning("Cannot learn face: vision processor not ready")
+            return
+
+        try:
+            from .perception.vision.face_detector import FaceDetector
+            from .perception.vision.face_encoder import FaceEncoder
+            from .cognition.memory.memory_types import PersonMemory
+
+            detector = FaceDetector()
+            encoder = FaceEncoder()
+
+            # Detect faces
+            faces = detector.detect(frame)
+            if not faces:
+                logger.warning(f"Cannot learn face for '{name}': no face detected")
+                return
+
+            # Use the largest/closest face
+            if len(faces) > 1:
+                faces = sorted(faces, key=lambda f: f.width * f.height, reverse=True)
+            face = faces[0]
+
+            # Encode the face
+            encodings = encoder.encode(frame, [face])
+            if not encodings:
+                logger.warning(f"Cannot learn face for '{name}': encoding failed")
+                return
+
+            encoding = encodings[0]
+
+            # Create person ID
+            person_id = name.lower().replace(" ", "_") + "_1"
+
+            # Check if already exists
+            existing = await self._long_term_memory.get_person(person_id)
+            if not existing:
+                # Create new person
+                person = PersonMemory(
+                    person_id=person_id,
+                    name=name,
+                    familiarity_score=80.0,  # High familiarity - they introduced themselves!
+                    trust_score=70.0,
+                    sentiment=0.5,
+                )
+                await self._long_term_memory.save_person(person, trust_score=70.0)
+                logger.info(f"Created new person: {name} ({person_id})")
+
+            # Save face embedding
+            success = await self._long_term_memory.save_face_embedding(
+                person_id=person_id,
+                embedding=encoding.embedding,
+                quality_score=encoding.quality_score,
+            )
+
+            if success:
+                logger.info(
+                    f"Learned face for '{name}' (quality: {encoding.quality_score:.2f})"
+                )
+
+                # Also update short-term memory to recognize them immediately
+                if self._memory_system:
+                    self._memory_system.short_term.record_person_seen(
+                        person_id=person_id,
+                        is_familiar=True,
+                        distance=50,
+                    )
+            else:
+                logger.error(f"Failed to save face embedding for '{name}'")
+
+        except Exception as e:
+            logger.error(f"Error learning face for '{name}': {e}")
 
     def _map_need_to_emotion(self) -> str:
         """

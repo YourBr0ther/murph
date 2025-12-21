@@ -87,6 +87,13 @@ COMMAND_PATTERNS: dict[str, list[str]] = {
         r"stop\s+that",
         r"don't\s+do\s+that",
     ],
+    # Face learning
+    "learn_face": [
+        r"(?:i'm|i am|my name is|call me)\s+(\w+)",
+        r"remember me",
+        r"learn my face",
+        r"this is (\w+)",
+    ],
 }
 
 # Response templates organized by action and mood
@@ -131,6 +138,9 @@ RESPONSE_TEMPLATES: dict[str, dict[str, list[str]]] = {
     },
     "negative_feedback": {
         "any": ["aww...", "sorry...", "buh?", "...okay"],
+    },
+    "learn_face": {
+        "any": ["ooh! hello {name}!", "hi {name}! I'll remember you!", "beep! nice to meet you {name}!"],
     },
     "unknown": {
         "any": ["hmm?", "buh?", "beep?"],
@@ -229,7 +239,8 @@ class VoiceCommandService:
 
         for action, patterns in self._compiled_patterns.items():
             for pattern in patterns:
-                if pattern.search(text_lower):
+                match = pattern.search(text_lower)
+                if match:
                     self._keyword_matches += 1
 
                     # Determine command type
@@ -237,12 +248,22 @@ class VoiceCommandService:
                         cmd_type = CommandType.DIRECT_ACTION
                     elif action in ("positive_feedback", "negative_feedback"):
                         cmd_type = CommandType.FEEDBACK
+                    elif action == "learn_face":
+                        cmd_type = CommandType.DIRECT_ACTION
                     else:
                         cmd_type = CommandType.BEHAVIOR_TRIGGER
+
+                    # Extract params for learn_face (capture name from regex group)
+                    params = {}
+                    if action == "learn_face" and match.groups():
+                        name = match.group(1)
+                        if name:
+                            params["name"] = name.capitalize()
 
                     return VoiceCommand(
                         command_type=cmd_type,
                         action=action,
+                        params=params,
                         confidence=1.0,
                     )
 
@@ -382,7 +403,14 @@ Do not include any explanation, just the single word action name."""
         if not response_options:
             return ""
 
-        return random.choice(response_options)
+        response = random.choice(response_options)
+
+        # Substitute any placeholders from command params
+        if command and command.params:
+            for key, value in command.params.items():
+                response = response.replace(f"{{{key}}}", str(value))
+
+        return response
 
     def _calculate_need_adjustments(
         self, command: VoiceCommand | None
