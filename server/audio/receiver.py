@@ -247,6 +247,14 @@ class AudioReceiver:
                     rms = np.sqrt(np.mean(samples.astype(np.float32) ** 2)) / 32768.0
                     is_voice = rms > self.VOICE_RMS_THRESHOLD
 
+                    # Log every 50 frames (~1 second at 20ms/frame)
+                    if self._frames_received % 50 == 0:
+                        buffer_ms = self._buffer.get_audio_duration_ms()
+                        logger.info(
+                            f"Audio: frames={self._frames_received}, RMS={rms:.4f}, "
+                            f"voice={is_voice}, buffer={buffer_ms:.0f}ms"
+                        )
+
                     # Add to buffer, check for complete utterance
                     utterance = self._buffer.add_chunk(audio_bytes, is_voice)
 

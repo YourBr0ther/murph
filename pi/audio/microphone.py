@@ -411,6 +411,9 @@ class MicrophoneCapture(BaseMicrophoneCapture):
             import sounddevice as sd
             import numpy as np
 
+            # Track callback count for periodic logging
+            callback_count = [0]
+
             def audio_callback(
                 indata: np.ndarray, frames: int, time_info: dict, status: int
             ) -> None:
@@ -428,6 +431,14 @@ class MicrophoneCapture(BaseMicrophoneCapture):
                     # Convert to 16-bit PCM and store
                     audio_bytes = (indata * 32767).astype(np.int16).tobytes()
                     self._audio_buffer.append(audio_bytes)
+
+                # Log every ~1 second (assuming 16kHz, 1024 chunk = ~64ms per callback)
+                callback_count[0] += 1
+                if callback_count[0] % 16 == 0:
+                    logger.debug(
+                        f"Mic: RMS={rms:.4f}, level={self._audio_level:.2f}, "
+                        f"voice={self._voice_detected}, buffer={len(self._audio_buffer)}"
+                    )
 
             self._stream = sd.InputStream(
                 samplerate=self._sample_rate,
