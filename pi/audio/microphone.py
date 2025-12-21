@@ -49,11 +49,16 @@ def detect_active_microphone(
     try:
         import sounddevice as sd
         import numpy as np
+        devices = sd.query_devices()
     except ImportError:
         logger.warning("sounddevice/numpy not available for auto-detection")
         return None
+    except OSError as e:
+        # PortAudio not installed (error happens on import or query)
+        logger.warning(f"Audio system not available: {e}")
+        logger.warning("Install PortAudio: sudo apt install libportaudio2 portaudio19-dev")
+        return None
 
-    devices = sd.query_devices()
     input_devices = [
         (i, d) for i, d in enumerate(devices)
         if d['max_input_channels'] > 0
