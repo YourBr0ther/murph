@@ -7,7 +7,11 @@ import asyncio
 import logging
 import signal
 import sys
+import warnings
 from pathlib import Path
+
+# Suppress PyTorch FutureWarnings from facenet_pytorch
+warnings.filterwarnings("ignore", category=FutureWarning, module="facenet_pytorch")
 
 from dotenv import load_dotenv
 import uvicorn
