@@ -59,7 +59,8 @@ class TestAudioBuffer:
         result = buffer.add_chunk(b"\x00\x00" * 320, is_voice=False)
 
         assert result is not None
-        assert len(result) == 640  # Original voice chunk
+        # 640 bytes voice + 2x 640 bytes silence chunks
+        assert len(result) == 640 + 640 + 640
         assert buffer.is_speaking is False
 
     def test_no_utterance_during_voice(self) -> None:

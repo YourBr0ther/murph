@@ -75,6 +75,9 @@ class AudioBuffer:
 
         # Silence received
         if self._is_speaking:
+            # Also add silence chunks so STT gets complete audio
+            self._chunks.append(audio_data)
+
             if self._silence_start is None:
                 self._silence_start = now
 
