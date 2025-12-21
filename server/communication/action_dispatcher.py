@@ -55,6 +55,10 @@ class ActionDispatcher:
         self._connection = connection
         self._speech_service = speech_service
 
+    def set_speech_service(self, speech_service: SpeechService) -> None:
+        """Set the speech service for TTS synthesis."""
+        self._speech_service = speech_service
+
     async def dispatch(self, action_name: str, params: dict[str, Any]) -> bool:
         """
         Dispatch an action to the Pi.

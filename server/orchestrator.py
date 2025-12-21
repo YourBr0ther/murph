@@ -240,13 +240,15 @@ class CognitionOrchestrator:
             self._evaluator._reasoner = self._behavior_reasoner
             logger.info("LLM behavior reasoner initialized")
 
-        # Initialize speech service for STT (if API key available)
-        if self._llm_config.provider == "nanogpt":
+        # Initialize speech service for TTS/STT (if NanoGPT API key available)
+        # This works regardless of LLM provider - can use Ollama for LLM + NanoGPT for speech
+        if self._llm_config.nanogpt_api_key:
             from .llm.services.speech_service import SpeechService
 
             self._speech_service = SpeechService(self._llm_config)
             self._audio_receiver.set_speech_service(self._speech_service)
-            logger.info("Speech service initialized for STT")
+            self._action_dispatcher.set_speech_service(self._speech_service)
+            logger.info("Speech service initialized (TTS + STT)")
 
         # Initialize voice command service
         from .llm.services.voice_command_service import VoiceCommandService
