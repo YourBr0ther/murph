@@ -133,8 +133,8 @@ class AudioReceiver:
     """
 
     # RMS threshold for server-side VAD confirmation
-    # Lowered from 0.01 to detect quieter microphones (webcam mics often have low output)
-    VOICE_RMS_THRESHOLD = 0.002
+    # Tuned for webcam mics with 5x gain: ambient noise ~0.01, speech ~0.03+
+    VOICE_RMS_THRESHOLD = 0.02
 
     # Minimum utterance duration to process (ms)
     MIN_UTTERANCE_MS = 200
