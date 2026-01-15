@@ -1,6 +1,46 @@
 # server/src/murph_server/audio/tts.py
 from pathlib import Path
+import numpy as np
+from scipy import signal
 from piper import PiperVoice
+
+
+def radio_effect(audio: np.ndarray, sample_rate: int = 16000) -> np.ndarray:
+    """Apply vintage radio effect like Alastor from Hazbin Hotel."""
+    audio = audio.astype(np.float32) / 32768.0
+
+    # 1. Bandpass filter (300-3400 Hz) - classic telephone/radio range
+    low_cut = 300 / (sample_rate / 2)
+    high_cut = 3400 / (sample_rate / 2)
+    b, a = signal.butter(4, [low_cut, high_cut], btype='band')
+    audio = signal.filtfilt(b, a, audio)
+
+    # 2. Soft clipping / tube saturation
+    drive = 1.5  # Amount of drive/distortion
+    audio = np.tanh(audio * drive) / np.tanh(drive)
+
+    # 3. Add subtle harmonics (warmth)
+    harmonics = np.tanh(audio * 2) * 0.1
+    audio = audio + harmonics
+
+    # 4. Slight compression (reduce dynamic range)
+    threshold = 0.4
+    ratio = 3.0
+    mask = np.abs(audio) > threshold
+    audio[mask] = np.sign(audio[mask]) * (
+        threshold + (np.abs(audio[mask]) - threshold) / ratio
+    )
+
+    # 5. Add very subtle crackle/noise
+    noise = np.random.randn(len(audio)) * 0.008
+    audio = audio + noise
+
+    # 6. Final bandpass to clean up
+    audio = signal.filtfilt(b, a, audio)
+
+    # Normalize and convert back to int16
+    audio = audio / (np.abs(audio).max() + 0.001) * 0.85
+    return (audio * 32767).astype(np.int16)
 
 
 class TextToSpeech:
@@ -21,10 +61,21 @@ class TextToSpeech:
                 return model_path
         raise FileNotFoundError(f"Voice model not found: {voice}")
 
-    def synthesize(self, text: str) -> bytes:
+    def synthesize(self, text: str, apply_radio_effect: bool = True) -> bytes:
         if not text.strip():
             return b""
         audio_chunks = []
+        sample_rate = None
         for chunk in self.voice.synthesize(text):
             audio_chunks.append(chunk.audio_int16_bytes)
-        return b"".join(audio_chunks)
+            sample_rate = chunk.sample_rate
+
+        raw_audio = b"".join(audio_chunks)
+
+        if apply_radio_effect and raw_audio:
+            # Convert to numpy, apply effect, convert back
+            audio_array = np.frombuffer(raw_audio, dtype=np.int16)
+            processed = radio_effect(audio_array, sample_rate or 16000)
+            return processed.tobytes()
+
+        return raw_audio
