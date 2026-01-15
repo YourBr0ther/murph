@@ -43,3 +43,7 @@ Thumbs.db
 # Project specific
 *.wav
 !client/src/murph_client/sounds/**/*.wav
+
+# Vendor documentation (reference only)
+CKK0015/
+CKK0018/
