@@ -80,6 +80,10 @@ class MurphClient:
                     # Record for a few seconds
                     audio_data = self.audio_capture.read_seconds(3.0)
 
+                    # Signal recording complete
+                    self.playback.beep(frequency=1200, duration=0.1)  # Higher pitch = done
+                    print("Processing...")
+
                     # Send to server
                     await ws.send(audio_data.tobytes())
 
@@ -99,6 +103,8 @@ class MurphClient:
                     elif isinstance(response, bytes):
                         # Direct audio response
                         self.playback.play(response)
+
+                    print("Listening for wake word...")
 
     def stop(self):
         self.running = False
