@@ -31,16 +31,23 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             # Use receive() to handle any message type (including pings)
             message = await websocket.receive()
+            print(f"Received message type: {message.get('type')}")
 
             if message["type"] == "websocket.disconnect":
+                print("Received disconnect message")
                 break
 
             if message["type"] != "websocket.receive":
+                print(f"Skipping non-receive message: {message}")
                 continue
 
             # Get binary data
             data = message.get("bytes")
             if not data:
+                # Could be a text message (like ping response)
+                text = message.get("text")
+                if text:
+                    print(f"Received text message: {text[:100]}")
                 continue  # Skip non-binary messages
             print(f"Received {len(data)} bytes of audio")
 
@@ -93,7 +100,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 await websocket.send_json({"type": "error", "message": str(e)})
 
     except WebSocketDisconnect:
-        print("Client disconnected")
+        print("Client disconnected (WebSocketDisconnect)")
+    except Exception as e:
+        print(f"WebSocket error: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 def main():
