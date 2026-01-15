@@ -27,7 +27,7 @@ class ClientConfig:
     chunk_size: int = 1024
     audio_device_index: int = 1  # USB mic is typically device 1 on Pi
     audio_device_sample_rate: int = 44100  # USB mic native rate
-    max_duty_cycle: int = 25
+    max_duty_cycle: int = 70
     pwm_frequency: int = 1000
     obstacle_threshold_cm: float = 20.0
     backup_distance_inches: float = 2.0

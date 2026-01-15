@@ -72,26 +72,28 @@ class MotorDriver:
         GPIO.output(self.pins.M4_B, GPIO.LOW)
 
     def rotate_left(self):
+        # Left side (M1=FL, M4=BL) backward, Right side (M2=FR, M3=BR) forward
         self.set_speed(self.max_duty_cycle)
-        GPIO.output(self.pins.M1_A, GPIO.HIGH)
+        GPIO.output(self.pins.M1_A, GPIO.HIGH)  # FL backward
         GPIO.output(self.pins.M1_B, GPIO.LOW)
-        GPIO.output(self.pins.M2_A, GPIO.LOW)
+        GPIO.output(self.pins.M4_A, GPIO.HIGH)  # BL backward
+        GPIO.output(self.pins.M4_B, GPIO.LOW)
+        GPIO.output(self.pins.M2_A, GPIO.LOW)   # FR forward
         GPIO.output(self.pins.M2_B, GPIO.HIGH)
-        GPIO.output(self.pins.M3_A, GPIO.HIGH)
-        GPIO.output(self.pins.M3_B, GPIO.LOW)
-        GPIO.output(self.pins.M4_A, GPIO.LOW)
-        GPIO.output(self.pins.M4_B, GPIO.HIGH)
+        GPIO.output(self.pins.M3_A, GPIO.LOW)   # BR forward
+        GPIO.output(self.pins.M3_B, GPIO.HIGH)
 
     def rotate_right(self):
+        # Left side (M1=FL, M4=BL) forward, Right side (M2=FR, M3=BR) backward
         self.set_speed(self.max_duty_cycle)
-        GPIO.output(self.pins.M1_A, GPIO.LOW)
+        GPIO.output(self.pins.M1_A, GPIO.LOW)   # FL forward
         GPIO.output(self.pins.M1_B, GPIO.HIGH)
-        GPIO.output(self.pins.M2_A, GPIO.HIGH)
+        GPIO.output(self.pins.M4_A, GPIO.LOW)   # BL forward
+        GPIO.output(self.pins.M4_B, GPIO.HIGH)
+        GPIO.output(self.pins.M2_A, GPIO.HIGH)  # FR backward
         GPIO.output(self.pins.M2_B, GPIO.LOW)
-        GPIO.output(self.pins.M3_A, GPIO.LOW)
-        GPIO.output(self.pins.M3_B, GPIO.HIGH)
-        GPIO.output(self.pins.M4_A, GPIO.HIGH)
-        GPIO.output(self.pins.M4_B, GPIO.LOW)
+        GPIO.output(self.pins.M3_A, GPIO.HIGH)  # BR backward
+        GPIO.output(self.pins.M3_B, GPIO.LOW)
 
     def move_for_distance(self, direction: str, inches: float, ips: float = 1.0):
         duration = inches / ips
