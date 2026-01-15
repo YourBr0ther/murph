@@ -1,8 +1,8 @@
 # Murph
 
-A voice-interactive desk robot with a WALL-E-inspired personality.
+A voice-interactive desk robot with a WALL-E-inspired personality and a vintage radio voice.
 
-Murph listens for his name, responds with "Yes sir?", and helps with questions or moves around on command. He chirps and beeps while thinking, backs up when he detects obstacles, and genuinely tries to make your day better.
+Say "Hey Murph" and he'll beep to let you know he's listening. Ask questions, give movement commands, or just chat - he'll respond with a warm, old-timey radio voice (think Alastor from Hazbin Hotel). He backs up when he detects obstacles and genuinely tries to make your day better.
 
 ## Architecture
 
@@ -32,9 +32,10 @@ Murph listens for his name, responds with "Yes sir?", and helps with questions o
 
 ## Features
 
-- **Wake word activation**: Say "Murph?" and he responds "Yes sir?"
+- **Wake word activation**: Say "Hey Murph" - low beep = recording, high beep = processing
+- **Vintage radio voice**: Responses have that warm, old-timey radio effect
 - **Voice commands**: Ask questions or give movement instructions
-- **Thinking sounds**: R2-D2-style chirps while processing
+- **Auto-reconnect**: Client automatically reconnects if server restarts
 - **Obstacle avoidance**: Backs up 2 inches when detecting objects within 20cm
 - **Distance-based movement**: "Go forward 6 inches", "Turn left"
 
@@ -73,17 +74,17 @@ murph/
 ├── server/                 # Windows server (heavy processing)
 │   └── src/murph_server/
 │       ├── main.py         # FastAPI + WebSocket
-│       ├── audio/          # STT (faster-whisper) + TTS (Piper)
+│       ├── audio/          # STT (faster-whisper) + TTS (Piper + radio effect)
 │       ├── llm/            # Ollama integration
 │       └── intent/         # Command parsing
 ├── client/                 # Raspberry Pi client
 │   └── src/murph_client/
-│       ├── main.py         # Main loop
+│       ├── main.py         # Main loop with auto-reconnect
 │       ├── audio/          # Wake word + capture + playback
+│       ├── models/         # Custom wake word model (hey_murph.onnx)
 │       ├── motors/         # DRV8833 control
-│       ├── sensors/        # HC-SR04 ultrasonic
-│       └── sounds/         # Audio files
-└── scripts/                # Calibration and testing
+│       └── sensors/        # HC-SR04 ultrasonic
+└── docs/plans/             # Design docs and implementation plans
 ```
 
 ## Configuration
