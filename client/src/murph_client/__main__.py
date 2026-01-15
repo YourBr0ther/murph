@@ -2,14 +2,7 @@
 import os
 import sys
 
-# Suppress ONNX Runtime warnings (must be set before ANY imports)
-os.environ["ORT_LOG_LEVEL"] = "3"
-os.environ["ORT_DISABLE_ALL"] = "1"
-# Tell ONNX to skip GPU/CUDA provider entirely
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
-os.environ["ORT_EXECUTION_PROVIDER"] = "CPUExecutionProvider"
-
-# Suppress ALSA errors on Linux
+# Suppress ALSA errors on Linux (must happen before pyaudio import)
 if sys.platform == "linux":
     import ctypes
     from ctypes import c_char_p, c_int
@@ -26,8 +19,20 @@ if sys.platform == "linux":
     except OSError:
         pass
 
+    # Redirect stderr during imports to suppress ONNX/JACK C++ warnings
+    _stderr_fd = sys.stderr.fileno()
+    _devnull_fd = os.open(os.devnull, os.O_WRONLY)
+    _saved_stderr_fd = os.dup(_stderr_fd)
+    os.dup2(_devnull_fd, _stderr_fd)
+
 import asyncio
 from murph_client.main import main
+
+# Restore stderr after imports
+if sys.platform == "linux":
+    os.dup2(_saved_stderr_fd, _stderr_fd)
+    os.close(_saved_stderr_fd)
+    os.close(_devnull_fd)
 
 if __name__ == "__main__":
     asyncio.run(main())
