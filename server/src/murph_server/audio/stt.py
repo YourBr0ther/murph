@@ -5,11 +5,16 @@ import glob
 
 # Add CUDA Toolkit DLL path on Windows before importing faster_whisper
 if sys.platform == "win32":
-    cuda_paths = glob.glob(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v*\bin")
-    for cuda_bin in cuda_paths:
-        if os.path.exists(cuda_bin):
-            os.add_dll_directory(cuda_bin)
-            os.environ["PATH"] = cuda_bin + ";" + os.environ.get("PATH", "")
+    # Check both bin\ and bin\x64\ as different CUDA versions use different layouts
+    cuda_patterns = [
+        r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12*\bin\x64",
+        r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12*\bin",
+    ]
+    for pattern in cuda_patterns:
+        for cuda_bin in glob.glob(pattern):
+            if os.path.exists(cuda_bin):
+                os.add_dll_directory(cuda_bin)
+                os.environ["PATH"] = cuda_bin + ";" + os.environ.get("PATH", "")
 
 import numpy as np
 from faster_whisper import WhisperModel
