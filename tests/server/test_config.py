@@ -9,7 +9,7 @@ def test_config_has_required_fields():
     assert config.port == 8765
     assert config.whisper_model == "base"
     assert config.ollama_model == "llama3.2"
-    assert config.piper_voice == "en_US-lessac-medium"
+    assert config.piper_voice == "en_US-danny-low"
 
 
 def test_config_from_env(monkeypatch):

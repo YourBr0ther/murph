@@ -3,6 +3,13 @@ import sys
 import pytest
 from unittest.mock import MagicMock
 
+# Mock scipy at module level before any imports
+mock_scipy = MagicMock()
+mock_signal = MagicMock()
+mock_scipy.signal = mock_signal
+sys.modules["scipy"] = mock_scipy
+sys.modules["scipy.signal"] = mock_signal
+
 
 @pytest.fixture(autouse=True)
 def reset_client_modules():

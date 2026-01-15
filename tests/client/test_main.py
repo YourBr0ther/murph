@@ -5,8 +5,15 @@ from unittest.mock import MagicMock
 
 
 def test_client_can_import(mock_gpio, mock_pyaudio, mock_openwakeword):
-    # Also mock websockets
-    sys.modules["websockets"] = MagicMock()
+    # Mock websockets with its submodules
+    mock_websockets = MagicMock()
+    mock_exceptions = MagicMock()
+    mock_exceptions.ConnectionClosed = Exception
+    mock_exceptions.ConnectionClosedError = Exception
+    mock_websockets.exceptions = mock_exceptions
+
+    sys.modules["websockets"] = mock_websockets
+    sys.modules["websockets.exceptions"] = mock_exceptions
 
     from murph_client.main import MurphClient
     assert MurphClient is not None
