@@ -69,8 +69,13 @@ class MurphClient:
                 # Listen for wake word
                 audio_chunk = self.audio_capture.read()
                 if self.wakeword.process(audio_chunk):
-                    print("Wake word detected! Recording...")
+                    print("Wake word detected!")
                     self.wakeword.reset()
+
+                    # Beep to signal recording start
+                    self.playback.beep()
+                    await asyncio.sleep(0.1)  # Small gap to avoid speaker bleed
+                    print("Recording... speak now!")
 
                     # Record for a few seconds
                     audio_data = self.audio_capture.read_seconds(3.0)

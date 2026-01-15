@@ -25,6 +25,11 @@ class SpeechToText:
         self.model = WhisperModel(model_size, device=device, compute_type="float16")
 
     def transcribe(self, audio_data: np.ndarray, sample_rate: int = 16000) -> str:
-        segments, _ = self.model.transcribe(audio_data, language="en")
+        segments, _ = self.model.transcribe(
+            audio_data,
+            language="en",
+            vad_filter=True,
+            vad_parameters=dict(min_silence_duration_ms=100),
+        )
         text_parts = [segment.text for segment in segments]
         return "".join(text_parts).strip()
