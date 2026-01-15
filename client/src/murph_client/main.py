@@ -76,6 +76,17 @@ class MurphClient:
 
         return False
 
+    async def _play_thinking_sounds(self, stop_event: asyncio.Event):
+        """Play R2-D2 chirps until stop_event is set."""
+        loop = asyncio.get_event_loop()
+        while not stop_event.is_set():
+            await loop.run_in_executor(None, self.playback.chirp)
+            # Wait a bit between chirps, but check stop_event frequently
+            for _ in range(10):  # 1 second total, checking every 100ms
+                if stop_event.is_set():
+                    break
+                await asyncio.sleep(0.1)
+
     async def _listen_loop(self, ws):
         """Main listening loop - handles wake word and server communication."""
         print("Connected! Listening for wake word...")
@@ -89,9 +100,9 @@ class MurphClient:
                 print("Wake word detected!")
                 self.wakeword.reset()
 
-                # Beep to signal recording start
-                self.playback.beep()
-                await asyncio.sleep(0.1)  # Small gap to avoid speaker bleed
+                # Say "Yes sir?" to acknowledge
+                await loop.run_in_executor(None, self.playback.say_yes_sir)
+                await asyncio.sleep(0.1)  # Small gap before recording
                 print("Recording... speak now!")
 
                 # Record for a few seconds (run in executor to not block)
@@ -99,15 +110,26 @@ class MurphClient:
                     None, self.audio_capture.read_seconds, 3.0
                 )
 
-                # Signal recording complete
-                self.playback.beep(frequency=1200, duration=0.1)  # Higher pitch = done
+                # Signal recording complete with beep
+                self.playback.beep(frequency=1200, duration=0.1)
                 print("Processing...")
 
                 # Send to server
                 await ws.send(audio_data.tobytes())
 
-                # Wait for response
-                response = await ws.recv()
+                # Start thinking sounds while waiting for response
+                stop_thinking = asyncio.Event()
+                thinking_task = asyncio.create_task(
+                    self._play_thinking_sounds(stop_thinking)
+                )
+
+                try:
+                    # Wait for response
+                    response = await ws.recv()
+                finally:
+                    # Stop thinking sounds
+                    stop_thinking.set()
+                    await thinking_task
 
                 if isinstance(response, str):
                     # JSON response

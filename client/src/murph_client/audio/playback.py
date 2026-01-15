@@ -1,11 +1,16 @@
 # client/src/murph_client/audio/playback.py
+import random
 import wave
+from pathlib import Path
 import numpy as np
 
 try:
     import pyaudio
 except ImportError:
     pyaudio = None
+
+# Path to sounds directory
+SOUNDS_DIR = Path(__file__).parent.parent / "sounds"
 
 
 class AudioPlayback:
@@ -71,6 +76,31 @@ class AudioPlayback:
         tone[-fade_samples:] *= np.linspace(1, 0, fade_samples)
         audio = (tone * 32767 * 0.7).astype(np.int16)  # Louder beep
         self.play(audio.tobytes())
+
+    def say_yes_sir(self):
+        """Play the 'Yes sir?' response."""
+        yes_sir_path = SOUNDS_DIR / "yes_sir.wav"
+        if yes_sir_path.exists():
+            self.play_file(str(yes_sir_path))
+        else:
+            # Fallback to beep if sound file missing
+            self.beep(frequency=600, duration=0.15)
+            self.beep(frequency=800, duration=0.2)
+
+    def chirp(self):
+        """Play a random R2-D2 style chirp sound."""
+        chirp_files = list(SOUNDS_DIR.glob("chirp*.wav"))
+        if chirp_files:
+            self.play_file(str(random.choice(chirp_files)))
+        else:
+            # Fallback to generated chirp
+            freqs = random.choice([
+                [600, 900, 1200],
+                [800, 600, 800],
+                [500, 700, 900],
+            ])
+            for freq in freqs:
+                self.beep(frequency=freq, duration=0.08)
 
     def stop(self):
         """Stop playback (no-op for this implementation)."""
