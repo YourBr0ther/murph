@@ -35,6 +35,12 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 audio_array = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
                 print(f"Audio array shape: {audio_array.shape}, duration: {len(audio_array)/16000:.2f}s")
+                print(f"Audio stats: min={audio_array.min():.3f}, max={audio_array.max():.3f}, mean={abs(audio_array).mean():.4f}")
+
+                # Debug: save audio to file
+                import soundfile as sf
+                sf.write("debug_audio.wav", audio_array, 16000)
+                print("Saved debug audio to debug_audio.wav")
 
                 text = stt.transcribe(audio_array)
                 print(f"Transcribed: '{text}'")
