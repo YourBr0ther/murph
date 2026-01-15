@@ -9,11 +9,15 @@ def radio_effect(audio: np.ndarray, sample_rate: int = 16000) -> np.ndarray:
     """Apply vintage radio effect like Alastor from Hazbin Hotel."""
     audio = audio.astype(np.float32) / 32768.0
 
+    # Pad audio to avoid filter edge artifacts
+    pad_len = sample_rate // 4  # 250ms padding
+    audio = np.pad(audio, (pad_len, pad_len), mode='reflect')
+
     # 1. Bandpass filter (300-3400 Hz) - classic telephone/radio range
     low_cut = 300 / (sample_rate / 2)
     high_cut = 3400 / (sample_rate / 2)
-    b, a = signal.butter(4, [low_cut, high_cut], btype='band')
-    audio = signal.filtfilt(b, a, audio)
+    sos = signal.butter(4, [low_cut, high_cut], btype='band', output='sos')
+    audio = signal.sosfiltfilt(sos, audio)
 
     # 2. Soft clipping / tube saturation
     drive = 1.5  # Amount of drive/distortion
@@ -32,14 +36,24 @@ def radio_effect(audio: np.ndarray, sample_rate: int = 16000) -> np.ndarray:
     )
 
     # 5. Add very subtle crackle/noise
-    noise = np.random.randn(len(audio)) * 0.008
+    noise = np.random.randn(len(audio)) * 0.005
     audio = audio + noise
 
     # 6. Final bandpass to clean up
-    audio = signal.filtfilt(b, a, audio)
+    audio = signal.sosfiltfilt(sos, audio)
+
+    # Remove padding
+    audio = audio[pad_len:-pad_len]
+
+    # 7. Fade in/out to prevent clicks (20ms)
+    fade_samples = int(sample_rate * 0.02)
+    audio[:fade_samples] *= np.linspace(0, 1, fade_samples)
+    audio[-fade_samples:] *= np.linspace(1, 0, fade_samples)
 
     # Normalize and convert back to int16
-    audio = audio / (np.abs(audio).max() + 0.001) * 0.85
+    max_val = np.abs(audio).max()
+    if max_val > 0:
+        audio = audio / max_val * 0.75
     return (audio * 32767).astype(np.int16)
 
 

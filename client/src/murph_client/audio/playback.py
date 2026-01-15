@@ -23,18 +23,19 @@ class AudioPlayback:
 
     def play(self, audio_bytes: bytes):
         """Play raw audio bytes (16-bit PCM)."""
+        # Use larger buffer to prevent underruns
+        frames_per_buffer = 2048
         stream = self.pa.open(
             format=pyaudio.paInt16,
             channels=self.channels,
             rate=self.sample_rate,
             output=True,
             output_device_index=self.device_index,
+            frames_per_buffer=frames_per_buffer,
         )
 
-        # Write audio in larger chunks to avoid underruns
-        chunk_size = 4096
-        for i in range(0, len(audio_bytes), chunk_size):
-            stream.write(audio_bytes[i:i + chunk_size])
+        # Write all audio at once - PyAudio handles buffering
+        stream.write(audio_bytes)
 
         stream.stop_stream()
         stream.close()
