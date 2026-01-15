@@ -43,18 +43,28 @@ Murph listens for his name, responds with "Yes sir?", and helps with questions o
 ### Server (Windows)
 
 ```bash
+cd C:\scripts\murph
+python -m venv venv
+venv\Scripts\activate
 cd server
 pip install -e .
-python -m murph_server
+python -m murph_server.main
 ```
 
 ### Client (Raspberry Pi)
 
 ```bash
+cd ~/murph
+python3 -m venv venv
+source venv/bin/activate
 cd client
 pip install -e .
-python -m murph_client
+python -m murph_client.main
 ```
+
+> **Note:** You'll need to activate the venv each session:
+> - Windows: `venv\Scripts\activate`
+> - Pi: `source ~/murph/venv/bin/activate`
 
 ## Project Structure
 
