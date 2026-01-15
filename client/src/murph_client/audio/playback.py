@@ -34,8 +34,9 @@ class AudioPlayback:
             frames_per_buffer=frames_per_buffer,
         )
 
-        # Write all audio at once - PyAudio handles buffering
-        stream.write(audio_bytes)
+        # Add silence padding to ensure short sounds don't get cut off
+        padding = bytes(frames_per_buffer * 2)  # One buffer of silence
+        stream.write(audio_bytes + padding)
 
         stream.stop_stream()
         stream.close()
@@ -60,15 +61,15 @@ class AudioPlayback:
             stream.stop_stream()
             stream.close()
 
-    def beep(self, frequency: int = 800, duration: float = 0.15):
+    def beep(self, frequency: int = 800, duration: float = 0.2):
         """Play a short beep tone to signal recording start."""
         t = np.linspace(0, duration, int(self.sample_rate * duration), False)
         # Generate sine wave with fade in/out to avoid clicks
         tone = np.sin(2 * np.pi * frequency * t)
-        fade_samples = int(self.sample_rate * 0.01)  # 10ms fade
+        fade_samples = int(self.sample_rate * 0.015)  # 15ms fade
         tone[:fade_samples] *= np.linspace(0, 1, fade_samples)
         tone[-fade_samples:] *= np.linspace(1, 0, fade_samples)
-        audio = (tone * 32767 * 0.5).astype(np.int16)
+        audio = (tone * 32767 * 0.7).astype(np.int16)  # Louder beep
         self.play(audio.tobytes())
 
     def stop(self):
