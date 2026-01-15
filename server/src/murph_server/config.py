@@ -9,7 +9,7 @@ class ServerConfig:
     port: int = 8765
     whisper_model: str = "base"
     ollama_model: str = "llama3.2"
-    piper_voice: str = "en_US-lessac-medium"
+    piper_voice: str = "en_US-danny-low"
 
     def __post_init__(self):
         self.port = int(os.getenv("MURPH_PORT", self.port))
