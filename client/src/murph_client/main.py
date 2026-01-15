@@ -80,10 +80,11 @@ class MurphClient:
         """Main listening loop - handles wake word and server communication."""
         print("Connected! Listening for wake word...")
         self.reconnect_delay = 1  # Reset on successful connection
+        loop = asyncio.get_event_loop()
 
         while self.running:
-            # Listen for wake word
-            audio_chunk = self.audio_capture.read()
+            # Listen for wake word - run in executor to not block event loop
+            audio_chunk = await loop.run_in_executor(None, self.audio_capture.read)
             if self.wakeword.process(audio_chunk):
                 print("Wake word detected!")
                 self.wakeword.reset()
@@ -93,8 +94,10 @@ class MurphClient:
                 await asyncio.sleep(0.1)  # Small gap to avoid speaker bleed
                 print("Recording... speak now!")
 
-                # Record for a few seconds
-                audio_data = self.audio_capture.read_seconds(3.0)
+                # Record for a few seconds (run in executor to not block)
+                audio_data = await loop.run_in_executor(
+                    None, self.audio_capture.read_seconds, 3.0
+                )
 
                 # Signal recording complete
                 self.playback.beep(frequency=1200, duration=0.1)  # Higher pitch = done
