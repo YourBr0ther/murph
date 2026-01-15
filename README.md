@@ -48,7 +48,7 @@ python -m venv venv
 venv\Scripts\activate
 cd server
 pip install -e .
-python -m murph_server.main
+python -m murph_server
 ```
 
 ### Client (Raspberry Pi)
@@ -59,7 +59,7 @@ python3 -m venv venv
 source venv/bin/activate
 cd client
 pip install -e .
-python -m murph_client.main
+python -m murph_client
 ```
 
 > **Note:** You'll need to activate the venv each session:
