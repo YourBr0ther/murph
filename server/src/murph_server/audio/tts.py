@@ -25,6 +25,6 @@ class TextToSpeech:
         if not text.strip():
             return b""
         audio_chunks = []
-        for audio_bytes in self.voice.synthesize(text):
-            audio_chunks.append(audio_bytes)
+        for chunk in self.voice.synthesize(text):
+            audio_chunks.append(chunk.audio_int16_bytes)
         return b"".join(audio_chunks)
