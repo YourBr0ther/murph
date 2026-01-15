@@ -47,3 +47,6 @@ Thumbs.db
 # Vendor documentation (reference only)
 CKK0015/
 CKK0018/
+
+# Windows reserved filenames
+nul
