@@ -11,7 +11,7 @@ except ImportError:
 class AudioPlayback:
     """Audio playback using PyAudio (3.5mm jack or USB audio)."""
 
-    def __init__(self, sample_rate: int = 22050, channels: int = 1, device_index: int = None):
+    def __init__(self, sample_rate: int = 16000, channels: int = 1, device_index: int = None):
         self.sample_rate = sample_rate
         self.channels = channels
         self.device_index = device_index  # None = default device
@@ -31,8 +31,8 @@ class AudioPlayback:
             output_device_index=self.device_index,
         )
 
-        # Write audio in chunks
-        chunk_size = 1024
+        # Write audio in larger chunks to avoid underruns
+        chunk_size = 4096
         for i in range(0, len(audio_bytes), chunk_size):
             stream.write(audio_bytes[i:i + chunk_size])
 
