@@ -4,7 +4,7 @@ from piper import PiperVoice
 
 
 class TextToSpeech:
-    def __init__(self, voice: str = "en_US-lessac-medium"):
+    def __init__(self, voice: str = "en_US-danny-low"):
         self.voice_name = voice
         voice_path = self._find_voice_model(voice)
         self.voice = PiperVoice.load(voice_path)
