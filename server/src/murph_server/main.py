@@ -29,7 +29,19 @@ async def websocket_endpoint(websocket: WebSocket):
     print("Client connected")
     try:
         while True:
-            data = await websocket.receive_bytes()
+            # Use receive() to handle any message type (including pings)
+            message = await websocket.receive()
+
+            if message["type"] == "websocket.disconnect":
+                break
+
+            if message["type"] != "websocket.receive":
+                continue
+
+            # Get binary data
+            data = message.get("bytes")
+            if not data:
+                continue  # Skip non-binary messages
             print(f"Received {len(data)} bytes of audio")
 
             try:
@@ -86,7 +98,13 @@ async def websocket_endpoint(websocket: WebSocket):
 
 def main():
     import uvicorn
-    uvicorn.run(app, host=config.host, port=config.port)
+    uvicorn.run(
+        app,
+        host=config.host,
+        port=config.port,
+        ws_ping_interval=30,  # Send ping every 30s
+        ws_ping_timeout=60,   # Wait 60s for pong before closing
+    )
 
 
 if __name__ == "__main__":
