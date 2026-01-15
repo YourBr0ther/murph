@@ -37,6 +37,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 print(f"Audio array shape: {audio_array.shape}, duration: {len(audio_array)/16000:.2f}s")
                 print(f"Audio stats: min={audio_array.min():.3f}, max={audio_array.max():.3f}, mean={abs(audio_array).mean():.4f}")
 
+                # Normalize audio to improve transcription
+                max_val = np.abs(audio_array).max()
+                if max_val > 0.01:  # Only normalize if there's actual signal
+                    audio_array = audio_array / max_val * 0.9
+                    print(f"Normalized audio: max now {np.abs(audio_array).max():.3f}")
+
                 # Debug: save audio to file
                 import soundfile as sf
                 sf.write("debug_audio.wav", audio_array, 16000)
