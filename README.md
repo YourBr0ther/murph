@@ -27,7 +27,7 @@ Murph listens for his name, responds with "Yes sir?", and helps with questions o
 | Chassis | Cokoino 4WD with mecanum wheels |
 | Motor Driver | Pi Power & 4WD HAT (2x DRV8833) |
 | Microphone | USB microphone |
-| Speaker | 1W 8 Ohm via PWM + RC filter |
+| Speaker | Any speaker/headphones via 3.5mm jack |
 | Distance Sensor | HC-SR04 ultrasonic |
 
 ## Features

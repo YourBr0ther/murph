@@ -15,6 +15,10 @@ class UltrasonicSensor:
         if GPIO is None:
             raise RuntimeError("RPi.GPIO not available")
 
+        # Set BCM mode if not already set
+        if GPIO.getmode() is None:
+            GPIO.setmode(GPIO.BCM)
+
         GPIO.setup(self.trig_pin, GPIO.OUT)
         GPIO.setup(self.echo_pin, GPIO.IN)
         GPIO.output(self.trig_pin, GPIO.LOW)

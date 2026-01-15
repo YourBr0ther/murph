@@ -26,31 +26,47 @@ async def health_check():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
+    print("Client connected")
     try:
         while True:
             data = await websocket.receive_bytes()
-            audio_array = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
+            print(f"Received {len(data)} bytes of audio")
 
-            text = stt.transcribe(audio_array)
-            if not text.strip():
-                await websocket.send_json({"type": "no_speech"})
-                continue
+            try:
+                audio_array = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
+                print(f"Audio array shape: {audio_array.shape}, duration: {len(audio_array)/16000:.2f}s")
 
-            intent = parse_intent(text)
+                text = stt.transcribe(audio_array)
+                print(f"Transcribed: '{text}'")
 
-            if intent.type == IntentType.MOVEMENT:
-                await websocket.send_json({
-                    "type": "command",
-                    "command": intent.command,
-                    "distance": intent.distance,
-                })
-            elif intent.type == IntentType.STOP:
-                await websocket.send_json({"type": "command", "command": "stop"})
-            else:
-                response_text = await llm.query(text)
-                audio_bytes = tts.synthesize(response_text)
-                await websocket.send_json({"type": "response", "text": response_text})
-                await websocket.send_bytes(audio_bytes)
+                if not text.strip():
+                    await websocket.send_json({"type": "no_speech"})
+                    continue
+
+                intent = parse_intent(text)
+                print(f"Intent: {intent.type}, command: {intent.command}")
+
+                if intent.type == IntentType.MOVEMENT:
+                    await websocket.send_json({
+                        "type": "command",
+                        "command": intent.command,
+                        "distance": intent.distance,
+                    })
+                elif intent.type == IntentType.STOP:
+                    await websocket.send_json({"type": "command", "command": "stop"})
+                else:
+                    response_text = await llm.query(text)
+                    print(f"LLM response: '{response_text}'")
+                    audio_bytes = tts.synthesize(response_text)
+                    print(f"TTS generated {len(audio_bytes)} bytes")
+                    await websocket.send_json({"type": "response", "text": response_text})
+                    await websocket.send_bytes(audio_bytes)
+
+            except Exception as e:
+                print(f"Error processing audio: {e}")
+                import traceback
+                traceback.print_exc()
+                await websocket.send_json({"type": "error", "message": str(e)})
 
     except WebSocketDisconnect:
         print("Client disconnected")

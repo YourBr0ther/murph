@@ -15,7 +15,6 @@ class GPIOPins:
     M3_B: int = 25
     M4_A: int = 26
     M4_B: int = 16
-    PWM_AUDIO: int = 18
     ULTRASONIC_TRIG: int = 4
     ULTRASONIC_ECHO: int = 5
 
@@ -26,6 +25,8 @@ class ClientConfig:
     server_port: int = 8765
     sample_rate: int = 16000
     chunk_size: int = 1024
+    audio_device_index: int = 1  # USB mic is typically device 1 on Pi
+    audio_device_sample_rate: int = 44100  # USB mic native rate
     max_duty_cycle: int = 25
     pwm_frequency: int = 1000
     obstacle_threshold_cm: float = 20.0
@@ -34,6 +35,7 @@ class ClientConfig:
     def __post_init__(self):
         self.server_host = os.getenv("MURPH_SERVER_HOST", self.server_host)
         self.server_port = int(os.getenv("MURPH_SERVER_PORT", self.server_port))
+        self.audio_device_index = int(os.getenv("MURPH_AUDIO_DEVICE", self.audio_device_index))
 
     @property
     def server_uri(self) -> str:

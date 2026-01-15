@@ -13,8 +13,7 @@ class WakeWordDetector:
         )
 
     def process(self, audio: np.ndarray) -> bool:
-        self.model.predict(audio)
-        scores = self.model.get_prediction()
+        scores = self.model.predict(audio)
         score = scores.get(self.wake_word, 0.0)
         return score >= self.threshold
 

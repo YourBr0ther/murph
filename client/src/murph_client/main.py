@@ -22,9 +22,11 @@ class MurphClient:
         self.audio_capture = AudioCapture(
             sample_rate=self.config.sample_rate,
             chunk_size=self.config.chunk_size,
+            device_index=self.config.audio_device_index,
+            device_sample_rate=self.config.audio_device_sample_rate,
         )
         self.wakeword = WakeWordDetector()
-        self.playback = AudioPlayback(pin=self.pins.PWM_AUDIO)
+        self.playback = AudioPlayback()
         self.motors = MotorDriver(max_duty_cycle=self.config.max_duty_cycle)
         self.ultrasonic = UltrasonicSensor(
             trig_pin=self.pins.ULTRASONIC_TRIG,

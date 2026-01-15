@@ -41,7 +41,7 @@ Murph is a voice-interactive desk robot with a WALL-E-inspired personality. The 
 | Motor Driver HAT | Cokoino Pi Power & 4WD HAT | GPIO header |
 | Motors | 4x DC motors (mecanum wheels) | Via DRV8833 drivers |
 | Microphone | USB microphone | USB port |
-| Speaker | 1W 8 Ohm | GPIO18 via RC filter |
+| Speaker | Any speaker/headphones | 3.5mm audio jack (built-in) |
 | Ultrasonic Sensor | HC-SR04 | GPIO4 (trig), GPIO5 (echo) |
 
 ### GPIO Pin Allocation (BCM Mode)
@@ -58,7 +58,6 @@ Murph is a voice-interactive desk robot with a WALL-E-inspired personality. The 
 | GPIO25 | AN22 | Motor 3 input B |
 | GPIO26 | BN21 | Motor 4 input A (right front) |
 | GPIO16 | BN22 | Motor 4 input B |
-| GPIO18 | PWM Audio | Speaker output via RC filter |
 | GPIO4 | Ultrasonic Trig | HC-SR04 trigger |
 | GPIO5 | Ultrasonic Echo | HC-SR04 echo |
 
@@ -74,15 +73,9 @@ Front of Robot
 Back of Robot
 ```
 
-### Audio Circuit (PWM to Speaker)
+### Audio Output
 
-```
-GPIO18 ──[1kΩ]──┬──[10µF]── Speaker +
-                │           Speaker - ── GND
-               GND
-```
-
-Components sourced from Elegoo MEGA 2560 kit.
+Audio is output through the Pi's built-in 3.5mm headphone jack. Simply connect any speaker or headphones to the jack. No additional circuitry required.
 
 ---
 
@@ -120,7 +113,7 @@ While waiting for LLM responses, Murph plays R2-D2-style thinking sounds:
 **Pi Client:**
 - OpenWakeWord for "Murph?" detection
 - PyAudio for microphone capture
-- PWM audio playback via GPIO18
+- PyAudio for audio playback via 3.5mm jack
 - Pre-recorded "Yes sir?" response
 
 **Windows Server:**
@@ -249,7 +242,7 @@ murph/
 │           │   ├── __init__.py
 │           │   ├── wakeword.py      # OpenWakeWord integration
 │           │   ├── capture.py       # Microphone handling
-│           │   └── playback.py      # PWM audio output
+│           │   └── playback.py      # Audio output via 3.5mm jack
 │           ├── motors/
 │           │   ├── __init__.py
 │           │   └── driver.py        # DRV8833 motor control

@@ -1,45 +1,68 @@
 # client/src/murph_client/audio/playback.py
-import time
+import wave
 import numpy as np
 
 try:
-    import RPi.GPIO as GPIO
+    import pyaudio
 except ImportError:
-    GPIO = None
+    pyaudio = None
 
 
 class AudioPlayback:
-    def __init__(self, pin: int = 18, sample_rate: int = 22050, pwm_freq: int = 44100):
-        self.pin = pin
+    """Audio playback using PyAudio (3.5mm jack or USB audio)."""
+
+    def __init__(self, sample_rate: int = 22050, channels: int = 1, device_index: int = None):
         self.sample_rate = sample_rate
-        self.pwm_freq = pwm_freq
+        self.channels = channels
+        self.device_index = device_index  # None = default device
 
-        if GPIO is None:
-            raise RuntimeError("RPi.GPIO not available")
+        if pyaudio is None:
+            raise RuntimeError("PyAudio not available")
 
-        GPIO.setup(self.pin, GPIO.OUT)
-        self.pwm = GPIO.PWM(self.pin, pwm_freq)
-        self.pwm.start(50)
+        self.pa = pyaudio.PyAudio()
 
     def play(self, audio_bytes: bytes):
-        # Convert bytes to numpy array
-        audio = np.frombuffer(audio_bytes, dtype=np.int16)
+        """Play raw audio bytes (16-bit PCM)."""
+        stream = self.pa.open(
+            format=pyaudio.paInt16,
+            channels=self.channels,
+            rate=self.sample_rate,
+            output=True,
+            output_device_index=self.device_index,
+        )
 
-        # Normalize to 0-100 duty cycle range
-        audio_normalized = ((audio.astype(np.float32) + 32768) / 65536 * 100).astype(int)
+        # Write audio in chunks
+        chunk_size = 1024
+        for i in range(0, len(audio_bytes), chunk_size):
+            stream.write(audio_bytes[i:i + chunk_size])
 
-        # Calculate sample interval
-        interval = 1.0 / self.sample_rate
+        stream.stop_stream()
+        stream.close()
 
-        for sample in audio_normalized:
-            self.pwm.ChangeDutyCycle(max(0, min(100, sample)))
-            time.sleep(interval)
+    def play_file(self, filepath: str):
+        """Play a WAV file."""
+        with wave.open(filepath, 'rb') as wf:
+            stream = self.pa.open(
+                format=self.pa.get_format_from_width(wf.getsampwidth()),
+                channels=wf.getnchannels(),
+                rate=wf.getframerate(),
+                output=True,
+                output_device_index=self.device_index,
+            )
 
-        # Return to 50% duty cycle (silence)
-        self.pwm.ChangeDutyCycle(50)
+            chunk = 1024
+            data = wf.readframes(chunk)
+            while data:
+                stream.write(data)
+                data = wf.readframes(chunk)
+
+            stream.stop_stream()
+            stream.close()
 
     def stop(self):
-        self.pwm.stop()
+        """Stop playback (no-op for this implementation)."""
+        pass
 
     def cleanup(self):
-        self.stop()
+        """Release PyAudio resources."""
+        self.pa.terminate()
