@@ -25,7 +25,7 @@ class ClientConfig:
     server_port: int = 8765
     sample_rate: int = 16000
     chunk_size: int = 1024
-    audio_device_index: int = 1  # USB mic is typically device 1 on Pi
+    audio_device_index: int = 2  # USB mic device index on Pi
     audio_device_sample_rate: int = 44100  # USB mic native rate
     playback_device_index: int = 1  # USB speaker
     playback_sample_rate: int = 48000  # USB speaker native rate
