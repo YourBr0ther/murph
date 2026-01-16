@@ -13,6 +13,7 @@ import time
 
 try:
     from murph_client.audio.playback import AudioPlayback
+    from murph_client.config import ClientConfig
 except ImportError:
     print("Error: murph_client not installed. Run 'pip install -e client/' first.")
     sys.exit(1)
@@ -27,8 +28,18 @@ def main():
     print("Make sure speakers or headphones are connected.")
     print()
 
+    config = ClientConfig()
+    print(f"Using playback device: {config.playback_device_index}")
+    print(f"Sample rate: {config.playback_sample_rate} Hz")
+    print(f"Channels: {config.playback_channels}")
+    print()
+
     try:
-        playback = AudioPlayback()
+        playback = AudioPlayback(
+            device_index=config.playback_device_index,
+            output_sample_rate=config.playback_sample_rate,
+            output_channels=config.playback_channels,
+        )
     except RuntimeError as e:
         print(f"Error initializing audio: {e}")
         sys.exit(1)
