@@ -27,6 +27,9 @@ class ClientConfig:
     chunk_size: int = 1024
     audio_device_index: int = 1  # USB mic is typically device 1 on Pi
     audio_device_sample_rate: int = 44100  # USB mic native rate
+    playback_device_index: int = 1  # USB speaker
+    playback_sample_rate: int = 48000  # USB speaker native rate
+    playback_channels: int = 2  # USB speaker is stereo
     max_duty_cycle: int = 100
     pwm_frequency: int = 1000
     obstacle_threshold_cm: float = 20.0
@@ -36,6 +39,7 @@ class ClientConfig:
         self.server_host = os.getenv("MURPH_SERVER_HOST", self.server_host)
         self.server_port = int(os.getenv("MURPH_SERVER_PORT", self.server_port))
         self.audio_device_index = int(os.getenv("MURPH_AUDIO_DEVICE", self.audio_device_index))
+        self.playback_device_index = int(os.getenv("MURPH_PLAYBACK_DEVICE", self.playback_device_index))
 
     @property
     def server_uri(self) -> str:
