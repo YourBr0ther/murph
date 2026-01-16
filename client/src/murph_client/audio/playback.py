@@ -9,10 +9,7 @@ try:
 except ImportError:
     pyaudio = None
 
-try:
-    from scipy import signal as scipy_signal
-except ImportError:
-    scipy_signal = None
+from scipy import signal as scipy_signal
 
 # Path to sounds directory
 SOUNDS_DIR = Path(__file__).parent.parent / "sounds"
@@ -44,13 +41,8 @@ class AudioPlayback:
         """Resample audio to output device sample rate and convert to stereo if needed."""
         # Resample if rates differ
         if input_rate != self.output_sample_rate:
-            if scipy_signal is not None:
-                num_samples = int(len(audio) * self.output_sample_rate / input_rate)
-                audio = scipy_signal.resample(audio, num_samples).astype(np.int16)
-            else:
-                # Simple linear interpolation fallback
-                indices = np.linspace(0, len(audio) - 1, int(len(audio) * self.output_sample_rate / input_rate))
-                audio = np.interp(indices, np.arange(len(audio)), audio).astype(np.int16)
+            num_samples = int(len(audio) * self.output_sample_rate / input_rate)
+            audio = scipy_signal.resample(audio, num_samples).astype(np.int16)
 
         # Convert mono to stereo if needed
         if self.output_channels == 2 and len(audio.shape) == 1:
